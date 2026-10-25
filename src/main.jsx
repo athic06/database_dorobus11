@@ -13,6 +13,7 @@ import Visit from './pages/Visit.jsx'
 import PortraitGallery from './pages/PortraitGallery.jsx'
 import CharacterGallery from './pages/CharacterGallery.jsx'
 import MissionPreview from './pages/MissionPreview.jsx'
+import Courses from './pages/Courses.jsx'
 import './styles.css'
 
 function RequireAuth({ children }) {
@@ -36,6 +37,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/world" element={<RequireAuth><World /></RequireAuth>} />
           <Route path="/cave" element={<RequireAuth><Cave /></RequireAuth>} />
           <Route path="/plaza" element={<RequireAuth><Plaza /></RequireAuth>} />
+          <Route path="/courses" element={<RequireAuth><Courses /></RequireAuth>} />
           <Route path="/play" element={<RequireAuth><Play /></RequireAuth>} />
           <Route path="/visit/:id" element={<RequireAuth><Visit /></RequireAuth>} />
           <Route path="/dev/portraits" element={import.meta.env.DEV ? <PortraitGallery /> : <Navigate to="/" replace />} />

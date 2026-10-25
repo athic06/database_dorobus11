@@ -146,8 +146,8 @@ export default function Dashboard() {
           <p className="sub">오늘의 수업과 미션이 준비되어 있어요.</p>
           <Spirit />
           <div className="hero-stats">
-            <button className="stat">
-              <strong>2<small>개</small></strong>
+            <button className="stat" onClick={() => navigate('/courses')}>
+              <strong>{progress.course ? 1 : 0}<small>개</small></strong>
               <span>수강 중인 수업 ›</span>
             </button>
             <button className="stat" onClick={() => document.querySelector('.card.lesson')?.scrollIntoView({ behavior: 'smooth' })}>

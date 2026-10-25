@@ -13,8 +13,8 @@ export const PART_SPOTS = {
   antenna: { pos: [-72, 0, 24], npc: { label: '길 잃은 방문객', color: '#9B6BD6', hair: '#7A4A20', rotation: 2.2 } },
 }
 
-// 위에 둥둥 떠 있는 주황빛 부품 표시
-function PartBeacon() {
+// 위에 둥둥 떠 있는 표시 (부품은 주황, 수업 미션은 파랑)
+export function PartBeacon({ color = '#F5B841', glow = '#F08A3E' }) {
   const g = useRef()
   useFrame((s, dt) => {
     if (!g.current) return
@@ -25,9 +25,9 @@ function PartBeacon() {
     <group ref={g}>
       <mesh rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[0.45, 0.14, 8, 8]} />
-        <meshStandardMaterial color="#F5B841" emissive="#F08A3E" emissiveIntensity={1.4} toneMapped={false} />
+        <meshStandardMaterial color={color} emissive={glow} emissiveIntensity={1.4} toneMapped={false} />
       </mesh>
-      <pointLight color="#F08A3E" intensity={6} distance={8} />
+      <pointLight color={glow} intensity={6} distance={8} />
     </group>
   )
 }

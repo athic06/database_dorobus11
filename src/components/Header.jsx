@@ -4,7 +4,7 @@ import { useStore } from '../store.jsx'
 
 const TABS = [
   ['대시보드', '/'],
-  ['내 수업', null],
+  ['내 수업', '/courses'],
   ['공작소', null],
   ['실제 계정 전환', null],
   ['미니게임', '/play'],

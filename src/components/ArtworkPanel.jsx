@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useStore } from '../store.jsx'
 import { artworkVisitors } from '../game/daily.js'
+import { COURSES as COURSE_LIST } from '../game/courses.js'
 
 // B · 수업 결과물 → 웹 · 앱 성장: 수업에서 만든 작품을 하모니아 광장에 부스로 등록하고, 방문객이 느는 것을 본다.
-const COURSES = ['블록코딩', '아두이노', '앱 만들기', 'AI 그림', '모바일 로봇']
+// 작품을 만든 수업: 도로버스 수업 목록(game/courses.js)의 프로젝트 이름
+const COURSES = COURSE_LIST.map((c) => c.project)
 const ICONS = ['🤖', '💡', '📱', '🎨', '🚗', '🎵']
 export const MAX_ARTWORKS = 3
 
