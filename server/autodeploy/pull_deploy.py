@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -38,7 +39,12 @@ def main():
     last_file = CONFIG / "last"
     last = last_file.read_text(encoding="utf-8").strip() if last_file.exists() else ""
 
-    branch = api(f"https://api.github.com/repos/{repo}/branches/deploy", token)
+    try:
+        branch = api(f"https://api.github.com/repos/{repo}/branches/deploy", token)
+    except urllib.error.HTTPError as e:
+        hint = {401: "토큰이 틀렸거나 만료됐어요", 404: f"토큰에 {repo} 저장소 권한(Contents 읽기)이 없거나, deploy 브랜치가 아직 없어요"}
+        print(f"GitHub 확인 실패 (HTTP {e.code}): {hint.get(e.code, e.reason)}", file=sys.stderr)
+        return 1
     sha = branch["commit"]["sha"]
     if sha == last:
         return  # 바뀐 것 없음
