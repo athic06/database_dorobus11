@@ -248,6 +248,8 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .cases li { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; font-size: 13px; }
 .cases li.ok { background: #e8f8ec; }
 .cases li.no { background: #fdeee8; }
+.cases li.wait { background: #f3f5f9; }
+.case-goal { padding: 2px 8px; border-radius: 999px; background: #fff; color: #4a5060; font-size: 12px; font-weight: 700; white-space: nowrap; }
 .case-ic { font-size: 18px; }
 .case-name { flex: 1; font-weight: 700; }
 .lamp { width: 14px; height: 14px; border-radius: 50%; background: #c9cdd6; }

@@ -3,7 +3,7 @@ import MissionShell from './MissionShell.jsx'
 import { useStore } from '../store.jsx'
 
 // 맵별 미션 기획안 3번 · 하모니아 — 광장에 불을 켜라 「조명 복구」
-// '어두우면 조명 켜기' 같은 조건 블록을 만들고, 시험 운전으로 조건대로 작동하는지 확인한다.
+// '어두우면 조명 켜기' 같은 조건 블록을 만들고, 가동해서 네 가지 상황에서 조건대로 작동하는지 확인한다.
 
 const CONDITIONS = [
   { id: 'dark', label: '어두우면', test: (s) => s.dark },
@@ -42,7 +42,7 @@ export default function LightsMission({ onClear, onClose }) {
   const [then, setThen] = useState('')
   const [els, setEls] = useState('')
   const [results, setResults] = useState(null)
-  const [feedback, setFeedback] = useState('블록 빈칸을 골라 조명 규칙을 만들고 시험 운전을 해 봐요.')
+  const [feedback, setFeedback] = useState('블록 빈칸을 골라 조명 규칙을 만들고 가동해 봐요.')
   const [tone, setTone] = useState('info')
   const [done, setDone] = useState(false)
 
@@ -62,7 +62,7 @@ export default function LightsMission({ onClear, onClose }) {
     recordAttempt('lights', ok)
     if (ok) {
       setTone('good')
-      setFeedback('모든 시험을 통과했어요! 하모니아의 전기가 광장 전등까지 이어져요.')
+      setFeedback('네 가지 상황 모두 알맞게 작동했어요! 하모니아의 전기가 광장 전등까지 이어져요.')
     } else {
       const bad = res.find((r) => !r.ok)
       setTone('bad')
@@ -76,7 +76,7 @@ export default function LightsMission({ onClear, onClose }) {
     <MissionShell place="하모니아 광장 — 끊긴 전등 다시 잇기" title="광장 전등 연결" feedback={done ? '' : feedback} tone={tone} onClose={done ? null : onClose}>
       {!done ? (
         <>
-          <p className="q">광장 조명이 알맞게 켜지고 꺼지도록 조건 블록을 완성해요.</p>
+          <p className="q">아래 네 가지 상황에서 광장 조명이 이렇게 작동하도록 조건 블록을 완성해요.</p>
           <div className="blocks">
             <div className="block if">
               만약 <Slot value={cond} options={CONDITIONS} onPick={(v) => { setCond(v); setResults(null) }} placeholder="조건" /> 이라면
@@ -89,24 +89,28 @@ export default function LightsMission({ onClear, onClose }) {
               <Slot value={els} options={ACTIONS} onPick={(v) => { setEls(v); setResults(null) }} placeholder="동작" />
             </div>
           </div>
-          {results && (
-            <ul className="cases">
-              {results.map((r) => (
-                <li key={r.name} className={r.ok ? 'ok' : 'no'}>
-                  <span className="case-ic">{r.icon}</span>
-                  <span className="case-name">{r.name}</span>
-                  <span className={`lamp ${r.act === 'on' ? 'lit' : ''}`} aria-hidden="true" />
-                  <span>{label(ACTIONS, r.act)}</span>
-                  <b>{r.ok ? '✓' : '✗'}</b>
-                </li>
-              ))}
-            </ul>
-          )}
+          {/* 지켜야 할 상황은 처음부터 보여 주고, 가동한 뒤에는 실제 결과와 통과 여부를 붙인다 */}
+          <ul className="cases">
+            {(results || CASES).map((r) => (
+              <li key={r.name} className={!results ? 'wait' : r.ok ? 'ok' : 'no'}>
+                <span className="case-ic">{r.icon}</span>
+                <span className="case-name">{r.name}</span>
+                <span className="case-goal">{r.expect === 'on' ? '켜져야 해요' : '꺼져야 해요'}</span>
+                {results && (
+                  <>
+                    <span className={`lamp ${r.act === 'on' ? 'lit' : ''}`} aria-hidden="true" />
+                    <span>{label(ACTIONS, r.act)}</span>
+                    <b>{r.ok ? '✓' : '✗'}</b>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
           <div className="mission-actions">
             {results?.every((r) => r.ok) ? (
               <button className="btn-primary" onClick={() => setDone(true)}>조명 규칙 적용하기</button>
             ) : (
-              <button className="btn-primary" onClick={run}>시험 운전</button>
+              <button className="btn-primary" onClick={run}>조명 가동</button>
             )}
           </div>
         </>
