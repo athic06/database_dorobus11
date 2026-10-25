@@ -1,0 +1,41 @@
+# main 브랜치에 올라오면 빌드해서 결과물(dist)을 deploy 브랜치에 저장한다.
+# 미니PC는 1분마다 deploy 브랜치를 확인해서 바뀌었으면 받아 간다 (server/autodeploy 참고).
+name: build-and-publish
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: dist를 deploy 브랜치에 올리기
+        env:
+          MSG: ${{ github.event.head_commit.message || 'manual run' }}
+        run: |
+          cd dist
+          git init -q -b deploy
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -A
+          git commit -q -m "build ${GITHUB_SHA::7}: $(printf '%s' "$MSG" | head -n1)"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" deploy

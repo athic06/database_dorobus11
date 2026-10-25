@@ -1,0 +1,4 @@
+# 줄바꿈은 LF로 통일한다 (미니PC의 셸 스크립트가 CRLF면 실행되지 않음)
+* text=auto eol=lf
+*.png binary
+*.jpg binary

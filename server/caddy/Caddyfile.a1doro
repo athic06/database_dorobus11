@@ -1,0 +1,5 @@
+a1doro.duckdns.org {
+	encode gzip
+	header -Server
+	reverse_proxy 127.0.0.1:8795
+}

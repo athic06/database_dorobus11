@@ -1,0 +1,115 @@
+import { useEffect, useRef } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
+import * as THREE from 'three'
+import Vehicle from './Vehicles.jsx'
+import { vehicleOf } from '../game/routine.js'
+import { viewOffset } from '../myroom/Robot.jsx'
+
+const MAX_SPEED = 16
+const MAX_REVERSE = 6
+const ACCEL = 14
+const BRAKE = 24
+const DRAG = 5
+const STEER = 2.1
+const CAR_RADIUS = 1.7
+const NO_KEYS = { forward: false, back: false, left: false, right: false }
+
+const camGoal = new THREE.Vector3()
+const look = new THREE.Vector3()
+const off = new THREE.Vector3()
+
+// 모바일 로봇 자동차 조작: W/S 가속·후진, A/D 방향. 카메라는 차 뒤를 따라가고 드래그로 둘러볼 수 있다.
+export default function Driver({ posRef, headingRef, keys, view, colliders, half, frozen, onMove, vehicle = 'car' }) {
+  const top = MAX_SPEED * vehicleOf(vehicle).speed
+  const car = useRef()
+  const wheels = [useRef(), useRef(), useRef(), useRef()]
+  const speed = useRef(0)
+  const { camera, scene } = useThree()
+  const sun = useRef()
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+    window.__car = { teleport: (x, z, h = headingRef.current) => { posRef.current.set(x, 0, z); headingRef.current = h } }
+    return () => delete window.__car
+  }, [posRef, headingRef])
+
+  useEffect(() => {
+    if (sun.current) scene.add(sun.current.target)
+  }, [scene])
+
+  useFrame((_, rawDt) => {
+    const dt = Math.min(rawDt, 0.1)
+    const k = frozen ? NO_KEYS : keys.current
+    let v = speed.current
+    if (k.forward) v += (v < 0 ? BRAKE : ACCEL) * dt
+    else if (k.back) v -= (v > 0 ? BRAKE : ACCEL) * dt
+    else v -= Math.sign(v) * Math.min(Math.abs(v), DRAG * dt)
+    v = THREE.MathUtils.clamp(v, -MAX_REVERSE, top)
+
+    const steer = (k.left ? 1 : 0) - (k.right ? 1 : 0)
+    if (steer && Math.abs(v) > 0.2) {
+      headingRef.current += steer * STEER * dt * Math.sign(v) * Math.min(1, Math.abs(v) / 4)
+    }
+    const h = headingRef.current
+    const p = posRef.current
+    p.x += Math.sin(h) * v * dt
+    p.z += Math.cos(h) * v * dt
+
+    // 장애물과 경계
+    for (const [cx, cz, r] of colliders) {
+      const dx = p.x - cx
+      const dz = p.z - cz
+      const d = Math.hypot(dx, dz)
+      const min = r + CAR_RADIUS
+      if (d < min && d > 0.0001) {
+        p.x = cx + (dx / d) * min
+        p.z = cz + (dz / d) * min
+        v *= 0.4
+      }
+    }
+    const lim = half - 3
+    if (Math.abs(p.x) > lim || Math.abs(p.z) > lim) v *= 0.4
+    p.x = THREE.MathUtils.clamp(p.x, -lim, lim)
+    p.z = THREE.MathUtils.clamp(p.z, -lim, lim)
+    speed.current = v
+
+    car.current.position.copy(p)
+    car.current.rotation.y = h
+    car.current.rotation.z = THREE.MathUtils.lerp(car.current.rotation.z, -steer * Math.min(1, Math.abs(v) / top) * 0.06, 0.1)
+    wheels.forEach((w) => w.current && (w.current.rotation.x += (v * dt) / 0.55))
+
+    // 달리는 동안에는 둘러보던 시점이 천천히 차 뒤쪽으로 돌아온다
+    const vw = view.current
+    if (Math.abs(v) > 2) vw.yaw *= 1 - Math.min(1, dt * 1.2)
+    const camView = { yaw: h + Math.PI + vw.yaw, pitch: vw.pitch, dist: vw.dist }
+    camGoal.copy(p).add(viewOffset(camView, off))
+    camera.position.lerp(camGoal, 1 - Math.pow(0.001, dt))
+    look.set(p.x, 2, p.z)
+    camera.lookAt(look)
+
+    if (sun.current) {
+      sun.current.position.set(p.x + 30, 50, p.z + 20)
+      sun.current.target.position.set(p.x, 0, p.z)
+    }
+    onMove?.(p, h, v)
+  })
+
+  return (
+    <>
+      <directionalLight
+        ref={sun}
+        intensity={1.7}
+        castShadow
+        shadow-mapSize={[2048, 2048]}
+        shadow-camera-left={-35}
+        shadow-camera-right={35}
+        shadow-camera-top={35}
+        shadow-camera-bottom={-35}
+        shadow-camera-far={140}
+      />
+      <Vehicle ref={car} id={vehicle} wheelRefs={wheels} />
+    </>
+  )
+}
+
+export { CAR_RADIUS }

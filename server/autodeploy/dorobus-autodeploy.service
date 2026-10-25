@@ -1,0 +1,11 @@
+# 설치 위치: ~/.config/systemd/user/dorobus-autodeploy.service
+# GitHub deploy 브랜치가 바뀌었으면 받아서 사이트를 교체한다 (타이머가 1분마다 실행).
+[Unit]
+Description=DOROBUS auto deploy from GitHub
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 %h/dorobus/autodeploy/pull_deploy.py
+Nice=10
+MemoryMax=256M

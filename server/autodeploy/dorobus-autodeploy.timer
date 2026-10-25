@@ -1,0 +1,11 @@
+# 설치 위치: ~/.config/systemd/user/dorobus-autodeploy.timer
+[Unit]
+Description=Check GitHub for a new DOROBUS build every minute
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+AccuracySec=10s
+
+[Install]
+WantedBy=timers.target

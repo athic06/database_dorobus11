@@ -1,0 +1,8 @@
+node_modules
+dist
+.env
+.env.*
+*.log
+.DS_Store
+# 개인 디스코드 봇은 이 프로젝트와 무관해서 저장소에 올리지 않는다
+server/discord-bot/
