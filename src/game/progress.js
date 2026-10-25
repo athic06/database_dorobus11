@@ -48,8 +48,9 @@ export const INITIAL_PROGRESS = {
   goalItem: null, // 마이룸 구매 목표로 정한 상점 가구 id
   park: {}, // 어트랙션 강화 레벨 { carousel: 2 } (없으면 Lv.1)
   parkCollectAt: '', // 운영 수익을 마지막으로 받은 시각 (ISO)
-  course: null, // 수강 중인 수업 (game/courses.js의 id). 그 수업의 미션이 월드에 나타난다
-  courseDone: [], // 마친 수업 연계 월드 미션
+  course: null, // 수강 중인 수업 (game/courses.js의 id)
+  worldTask: null, // 내 수업 과제에서 「도로랜드에서 하기」를 누른 도로랜드 문제 (game/content.js의 id). 그 NPC가 월드에 나타난다
+  contentDone: [], // 마친 범용 콘텐츠 문제 id (같은 문제를 낸 수업들에 모두 완료로 보인다)
   arcade: { best: 0, rewarded: "" }, // 컴퓨터 미니게임 「셀 캐치」 최고 점수, 보상 받은 날
   attempts: {}, // 미션별 시도 기록 { 'car-check': { tries, wrong } }
 }

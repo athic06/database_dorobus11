@@ -1,10 +1,16 @@
 import { useMemo, useState } from 'react'
 import MissionShell from './MissionShell.jsx'
 import { useStore } from '../store.jsx'
-import { COURSE_REWARD, TRACKS } from '../game/courses.js'
+import { CONCEPTS, CONTENT_REWARD } from '../game/content.js'
 
-// 수업 연계 월드 미션: game/courses.js의 문제 데이터(steps)를 차례로 풀게 한다.
-// 수업이 바뀌면 이 화면은 그대로 두고 데이터만 바꾼다.
+// 도로랜드 문제(범용 콘텐츠): game/content.js의 문제 데이터(steps)를 차례로 풀게 한다.
+// 문제는 수업과 상관없이 개념별로 만들어 두고, 수업이 골라 과제로 낸다. 화면은 그대로 두고 데이터만 바꾼다.
+//
+// steps 형식
+//   { type: 'choose', q, options: [{ label, ok, why }] }              보기 하나 고르기
+//   { type: 'order',  q, items: [정답 순서...], hints: [...] }          순서대로 누르기 (화면에는 섞어서 보여 줌)
+//   { type: 'pick',   q, items: [{ label, icon, ok }] }                맞는 것을 모두 고르기
+//   { type: 'table',  q, actions: [...], rows: [{ label, answer }] }   상황마다 알맞은 동작 고르기
 
 // 보기 순서는 매번 같게 섞는다 (정답이 늘 첫 번째에 오지 않도록)
 const shuffle = (arr, seed) => arr.map((v, i) => [v, Math.sin(seed * 97 + i * 13.7)]).sort((a, b) => a[1] - b[1]).map(([v]) => v)
@@ -112,27 +118,26 @@ function Table({ step, onOk, onBad }) {
 
 const STEP = { choose: Choose, order: Order, pick: Pick, table: Table }
 
-export default function CourseMission({ course, onClose, onClear }) {
+export default function ContentMission({ item: w, onClose, onClear }) {
   const { recordAttempt } = useStore()
-  const w = course.world
   const [i, setI] = useState(0)
   const [fb, setFb] = useState('')
   const done = i >= w.steps.length
   const step = w.steps[i]
   const S = step && STEP[step.type]
   const ok = () => {
-    recordAttempt(`course-${course.id}-${i}`, true)
+    recordAttempt(`${w.id}-${i}`, true)
     setFb('')
     setI((n) => n + 1)
   }
   const bad = (msg) => {
-    recordAttempt(`course-${course.id}-${i}`, false)
+    recordAttempt(`${w.id}-${i}`, false)
     setFb(msg)
   }
-  const tr = TRACKS[course.track]
+  const reward = CONTENT_REWARD.world
   return (
     <MissionShell
-      place={`${tr.name} Level ${course.level} 수업 연계 — ${course.project}`}
+      place={`도로랜드 문제 — 개념: ${CONCEPTS[w.concept]}`}
       title={w.title}
       step={i + 1}
       total={w.steps.length}
@@ -142,10 +147,10 @@ export default function CourseMission({ course, onClose, onClear }) {
     >
       {done ? (
         <div className="clear">
-          <div className="clear-badge">수업 미션 완료</div>
-          <h3>{course.icon} {w.title}</h3>
+          <div className="clear-badge">과제 완료</div>
+          <h3>{w.title}</h3>
           <p>“{w.thanks}” — {w.npc.label}</p>
-          <p className="small">보상 CELL +{COURSE_REWARD.cell}, 탈것 스탬프 +{COURSE_REWARD.stamps}</p>
+          <p className="small">보상 CELL +{reward.cell}, 탈것 스탬프 +{reward.stamps}</p>
           <button className="btn-primary" onClick={onClear}>보상 받기</button>
         </div>
       ) : (

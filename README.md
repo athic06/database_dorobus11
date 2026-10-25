@@ -32,7 +32,8 @@ npm run dev
 | `src/missions` | 스토리 미션 · 수업 과제 창 |
 | `src/world`, `src/plaza`, `src/myroom`, `src/cave` | 3D 공간과 캐릭터 모형 |
 | `src/game` | 진행 상태 · 일상 루트 · 테마파크 등 규칙과 수치 (`routine.js`, `park.js` …) |
-| `src/game/courses.js` | 도로버스 수업 목록(레벨 1~8)과 수업별 월드 미션 문제. 수업이 바뀌면 이 파일만 고친다 |
+| `src/game/content.js` | 범용 콘텐츠 라이브러리: 개념별 문제(일반 문제, 도로랜드 문제). 수업과 상관없이 쓴다 |
+| `src/game/courses.js` | 도로버스 수업 목록(레벨 1~8)과 수업마다 라이브러리에서 고른 과제(ASSIGN). 수업이 바뀌면 이 파일만 고친다 |
 | `src/store.jsx` | 계정별 저장 (브라우저 localStorage) |
 | `server/` | 미니PC 설정 (Caddy, systemd, DuckDNS, 자동 배포) |
 
