@@ -62,7 +62,7 @@ export default function LightsMission({ onClear, onClose }) {
     recordAttempt('lights', ok)
     if (ok) {
       setTone('good')
-      setFeedback('모든 시험을 통과했어요! 광장에 불이 들어와요.')
+      setFeedback('모든 시험을 통과했어요! 하모니아의 전기가 광장 전등까지 이어져요.')
     } else {
       const bad = res.find((r) => !r.ok)
       setTone('bad')
@@ -73,7 +73,7 @@ export default function LightsMission({ onClear, onClose }) {
   const label = (list, id) => list.find((x) => x.id === id)?.label
 
   return (
-    <MissionShell place="하모니아 — 광장에 불을 켜라" title="조명 복구" feedback={done ? '' : feedback} tone={tone} onClose={done ? null : onClose}>
+    <MissionShell place="하모니아 광장 — 끊긴 전등 다시 잇기" title="광장 전등 연결" feedback={done ? '' : feedback} tone={tone} onClose={done ? null : onClose}>
       {!done ? (
         <>
           <p className="q">광장 조명이 알맞게 켜지고 꺼지도록 조건 블록을 완성해요.</p>

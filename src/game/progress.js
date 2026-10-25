@@ -10,7 +10,7 @@ export const INITIAL_PROGRESS = {
   caveCleared: false, // 챕터 2 미션 「출구 찾기」 → 하모니아가 멈춘 것을 봄
   plazaOpen: false, // 챕터 3: 자일로가 광장 문을 열어 줌
   harmoniaRestored: false, // 챕터 3 미션 「하모니아 멜로디 복원」
-  lightsFixed: false, // 챕터 3 미션 「광장에 불을 켜라」
+  lightsFixed: false, // 챕터 3 미션 「광장 전등 연결」 (하모니아 수리 뒤 끊겨 있던 광장 전등)
   facilities: [], // 챕터 3 미션 「방문객 맞이하기」로 설치한 시설
   shopReopened: false, // 챕터 3 미션 「상점 재개장 준비」
   cubesFound: false, // 챕터 3 끝: 회전목마 옆 숨겨진 공간에서 큐브 3개 발견, 리코가 큐브 속으로 → 챕터 4
@@ -108,7 +108,7 @@ export function objectiveOf(p) {
   if (!p.caveCleared) return '동굴의 지도 표지판 앞에서 출구를 찾아요'
   if (!p.plazaOpen) return '마이룸 앞의 자일로를 찾아가 이야기를 들어 봐요'
   if (!p.harmoniaRestored) return '하모니아 광장에 들어가 악보대에서 멜로디를 복원해요'
-  if (!p.lightsFixed) return '광장의 조명 제어반에서 조명이 켜지는 조건을 만들어요'
+  if (!p.lightsFixed) return '하모니아 수리 완료! 광장 조명 제어반에서 끊긴 전등을 연결하고 켜지는 조건을 만들어요'
   if (p.facilities.length < FACILITY_GOAL) return `광장 방문객의 요청을 듣고 시설을 설치해요 (${p.facilities.length}/${FACILITY_GOAL})`
   if (!p.shopReopened) return '광장 서쪽의 상점에 가서 재개장 준비를 도와요'
   if (!p.cubesFound) return '회전목마 옆 오래된 구조물이 움직였어요! 가 봐요'

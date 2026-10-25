@@ -13,8 +13,8 @@ export const STEPS = [
   { key: 'diaryFound', label: '동굴에서 일기장 찾기', done: () => ({ caveIntroSeen: true, diaryFound: true }) },
   { key: 'caveCleared', label: '동굴 출구 찾기' },
   { key: 'plazaOpen', label: '자일로에게 광장 문 열어 달라고 하기' },
-  { key: 'harmoniaRestored', label: '하모니아 멜로디 복원' },
-  { key: 'lightsFixed', label: '광장 조명 복구' },
+  { key: 'harmoniaRestored', label: '멜로디 복원, 하모니아 수리' },
+  { key: 'lightsFixed', label: '광장 전등 연결' },
   {
     key: 'facilities', label: `방문객 요청 시설 ${FACILITY_GOAL}개 설치`,
     done: (p) => ({ facilities: [...new Set([...(p.facilities || []), 'bench', 'fountain', 'photo'])] }),
@@ -89,27 +89,27 @@ export const SCENES = [
     ],
   },
   {
-    id: 'melody', label: '하모니아 멜로디 복원', before: 'harmoniaRestored', to: '/plaza',
+    id: 'melody', label: '멜로디 복원, 하모니아 수리', before: 'harmoniaRestored', to: '/plaza',
     recap: [
       { text: '(자일로가 하모니아 광장 문을 열어 주었다.)' },
-      { who: '자일로', text: '하모니아는 음악을 에너지로 바꿔 도로랜드를 움직이는 장치예요. 사라진 멜로디를 되살려 주세요!' },
-      { who: '리코', text: '악보대에 멜로디 조각이 흩어져 있대. 우리 기억을 단서로 맞춰 보자.' },
+      { who: '자일로', text: '하모니아는 음악을 에너지로 바꿔 도로랜드 전체에 전기를 보내는 장치예요. 그런데 악보가 사라졌어요!' },
+      { who: '리코', text: '그럼 우리가 기억하는 멜로디를 모아서 되살리자. 그러면 하모니아도 다시 고칠 수 있어!' },
     ],
   },
   {
-    id: 'lights', label: '광장 조명 복구', before: 'lightsFixed', to: '/plaza', tag: '시연 ②',
+    id: 'lights', label: '광장 전등 연결', before: 'lightsFixed', to: '/plaza', tag: '시연 ②',
     recap: [
-      { text: '(동굴에서 찾은 일기장의 경고대로, 멜로디가 사라지자 도로랜드가 멈춰 있었다.)' },
-      { text: '(하모니아 광장의 악보대에서 멜로디를 되살리자, 하모니아가 다시 노래하기 시작했다.)' },
-      { who: '제로', text: '놀이기구가 다시 돌아간다! 그런데 광장은 아직 깜깜해.' },
-      { who: '리코', text: '조명 제어반에서 어두울 때 불이 켜지도록 조건을 만들어 주면 돼!' },
+      { text: '(동굴에서 찾은 일기장의 경고대로, 멜로디가 사라지자 도로랜드 전체가 멈춰 있었다.)' },
+      { text: '(악보마저 사라졌지만, 모두의 기억을 모아 멜로디를 되살렸다. 하모니아 수리 완료! 도로랜드에 다시 전력이 돌아왔다.)' },
+      { who: '제로', text: '놀이기구가 다시 돌아간다! 그런데 광장만 아직 깜깜해.' },
+      { who: '리코', text: '광장 전등 연결이 끊겼나 봐. 조명 제어반에서 다시 잇고, 어두울 때 켜지도록 조건을 만들자!' },
     ],
   },
   {
     id: 'facility', label: '방문객 요청 시설 설치', before: 'facilities', to: '/plaza',
     recap: [
-      { text: '(광장에 불이 들어오자 방문객들이 하나둘 돌아왔다.)' },
-      { who: '제로', text: '방문객들이 뭔가 필요하대. 요청을 듣고 맞는 시설을 설치해 주자!' },
+      { text: '(광장 전등이 켜지자 음악과 불빛을 보고 방문객들이 하나둘 돌아왔다.)' },
+      { who: '자일로', text: '하모니아가 멈춰 있는 동안 광장 시설을 모두 치워 뒀거든요. 방문객들이 원하는 시설을 다시 놓아 볼까요?' },
     ],
   },
   {

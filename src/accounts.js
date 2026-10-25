@@ -6,7 +6,7 @@ export const DEMO_STAGES = {
   start: { demoPark: true },
   // 시연 ① 마이룸: 자동차 점검을 마치고 운전면허증을 받기 직전 → 받침대에서 면허증 GET
   license: { classDone: true, introSeen: true, carCheckDone: true, demoPark: true },
-  // 시연 ② 하모니아 광장: 멜로디 복원까지 끝나고 조명 복구 직전 → 조명 미션 → 옆의 방문객 요청 → 바로 어트랙션 강화와 설치
+  // 시연 ② 하모니아 광장: 멜로디 복원, 하모니아 수리까지 끝나고 광장 전등 연결 직전 → 전등 연결 미션 → 옆의 방문객 요청 → 바로 어트랙션 강화와 설치
   lights: {
     classDone: true, introSeen: true, carCheckDone: true, licenseGot: true, licenseDate: '2026-10-21',
     caveIntroSeen: true, diaryFound: true, caveCleared: true, plazaOpen: true, harmoniaRestored: true,
