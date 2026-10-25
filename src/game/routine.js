@@ -22,13 +22,11 @@ export function checkInPatch(p, d = new Date()) {
 
 /* ---------------- 탈것 ---------------- */
 // need: 모아야 하는 탈것 스탬프 수 · monthly: 그 달 출석판 보상 · speed: 최고 속도 배율
+// 운전자가 겉으로 보여야 하는 열린 탈것(스쿠터, 카트, 썰매)은 캐릭터를 태우는 모습이 없어서 빼고, 차체로 덮인 탈것만 둔다
 export const VEHICLES = [
   { id: 'car', name: '모바일 로봇 자동차', icon: '🚙', need: 0, speed: 1, desc: '자일로에게 받은 첫 탈것' },
-  { id: 'scooter', name: '하모니아 스쿠터', icon: '🛵', need: 5, speed: 1.15, desc: '작고 빨라서 골목길도 쌩쌩' },
-  { id: 'bus', name: '미니 도로버스', icon: '🚌', need: 12, speed: 0.9, desc: '느리지만 든든한 노란 버스' },
-  { id: 'kart', name: '로켓 카트', icon: '🏎️', need: 20, speed: 1.3, desc: '스탬프를 가장 많이 모은 운전자에게' },
+  { id: 'bus', name: '미니 도로버스', icon: '🚌', need: 5, speed: 0.9, desc: '느리지만 든든한 노란 버스' },
   { id: 'pumpkin', name: '호박 마차', icon: '🎃', monthly: '10', speed: 1.05, desc: '10월 출석판 보상' },
-  { id: 'sled', name: '눈썰매 카트', icon: '🛷', monthly: '11', speed: 1.1, desc: '11월 출석판 보상' },
   { id: 'tree', name: '트리 기차', icon: '🎄', monthly: '12', speed: 1, desc: '12월 출석판 보상' },
 ]
 export const vehicleOf = (id) => VEHICLES.find((v) => v.id === id) || VEHICLES[0]

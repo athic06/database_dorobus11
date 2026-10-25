@@ -146,7 +146,7 @@ export function VehiclePanel({ onClose }) {
       <div className="park-list">
         {VEHICLES.map((v) => {
           const has = ownsVehicle(p, v)
-          const using = (p.vehicle || 'car') === v.id
+          const using = currentVehicle(p) === v.id
           return (
             <div className="park-row" key={v.id}>
               <span className="park-icon">{v.icon}</span>
