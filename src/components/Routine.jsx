@@ -95,13 +95,20 @@ export function QuestPanel({ onClose }) {
 
 /* ---------------- 출석판 ---------------- */
 export function AttendanceBoard() {
-  const { progress: p, setProgress } = useStore()
+  const { user, progress: p, setProgress } = useStore()
   const now = new Date()
   const att = p.attendance?.month === monthKey(now) ? p.attendance : { days: [] }
   const last = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
   const mv = monthlyVehicle(now)
   const owned = mv && ownsVehicle(p, mv)
-  const canClaim = mv && !owned && isLastDayOfMonth(now) && att.days.length >= MONTHLY_GOAL
+  const demo = !!user?.preset // 시연 계정: 버튼으로 출석 도장을 찍고, 말일이 아니어도 이달의 탈것을 받을 수 있다
+  const canClaim = mv && !owned && (demo || isLastDayOfMonth(now)) && att.days.length >= MONTHLY_GOAL
+  const blank = Array.from({ length: last }, (_, i) => i + 1).find((d) => !att.days.includes(d))
+  const demoStamp = () =>
+    setProgress({
+      attendance: { month: monthKey(now), days: blank ? [...att.days, blank].sort((a, b) => a - b) : att.days },
+      stamps: (p.stamps || 0) + 1,
+    })
   return (
     <div className="attend">
       <div className="attend-head">
@@ -121,6 +128,11 @@ export function AttendanceBoard() {
         </p>
       )}
       {canClaim && <button className="btn-primary" onClick={() => setProgress({ monthlyVehicles: [...(p.monthlyVehicles || []), mv.id] })}>이달의 탈것 받기</button>}
+      {demo && (
+        <button className="btn-ghost attend-demo" onClick={demoStamp}>
+          🐾 시연용 스탬프 찍기 {blank ? `(${now.getMonth() + 1}월 ${blank}일)` : '(스탬프만 +1)'}
+        </button>
+      )}
     </div>
   )
 }
