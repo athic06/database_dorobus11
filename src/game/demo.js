@@ -53,18 +53,108 @@ export function stateBefore(before) {
 }
 
 // 바로 가기 장면. to: 이동할 화면, from: 월드에서 나타날 위치 (World.jsx의 SPAWNS)
+// recap: 장면으로 넘어가기 전에 보여 주는 '지금까지의 이야기' 대사 (갑자기 미션부터 시작하지 않도록)
 export const SCENES = [
-  { id: 'license', label: '운전면허증 받기', before: 'licenseGot', to: '/myroom', tag: '시연 ①' },
-  { id: 'cave', label: '동굴 탐험 (일기장)', before: 'diaryFound', to: '/cave' },
-  { id: 'caveExit', label: '동굴 출구 찾기', before: 'caveCleared', to: '/cave' },
-  { id: 'xylo', label: '멈춘 하모니아, 자일로 대화', before: 'plazaOpen', to: '/world', from: 'myroom' },
-  { id: 'melody', label: '하모니아 멜로디 복원', before: 'harmoniaRestored', to: '/plaza' },
-  { id: 'lights', label: '광장 조명 복구', before: 'lightsFixed', to: '/plaza', tag: '시연 ②' },
-  { id: 'facility', label: '방문객 요청 시설 설치', before: 'facilities', to: '/plaza' },
-  { id: 'shop', label: '상점 재개장 준비', before: 'shopReopened', to: '/world', from: 'plaza' },
-  { id: 'cubes', label: '회전목마 옆 큐브 사건', before: 'cubesFound', to: '/world', from: 'carousel' },
-  { id: 'signs', label: '회전목마 안내판 정리', before: 'signsDone', to: '/world', from: 'carousel' },
-  { id: 'parts', label: '보이드 부품 모으기', before: 'parts', to: '/world', from: 'myroom' },
-  { id: 'assembly', label: '보이드 조립 (연구실)', before: 'voidBuilt', to: '/world', from: 'myroom' },
-  { id: 'after', label: '메인 스토리 완료 후', before: null, to: '/' },
+  {
+    id: 'license', label: '운전면허증 받기', before: 'licenseGot', to: '/myroom', tag: '시연 ①',
+    recap: [
+      { text: '(첫 수업을 마치자, 도로랜드에서 초대장이 날아왔다.)' },
+      { who: '자일로', text: '어서 오세요, 도로랜드에! 이 넓은 곳을 걸어 다닐 순 없겠죠? 모바일 로봇 자동차를 준비했어요.' },
+      { who: '리코', text: '조립도 출발 점검도 끝냈어! 이제 출발만 하면 돼.' },
+      { who: '자일로', text: '잠깐! 면허증 없이 운전하면 안 되죠. 자동차 옆 받침대에 운전면허증을 놓아 뒀어요.' },
+    ],
+  },
+  {
+    id: 'cave', label: '동굴 탐험 (일기장)', before: 'diaryFound', to: '/cave',
+    recap: [
+      { text: '(운전면허증을 받고, 지도에 그려진 낯선 문양을 따라 북동쪽 산으로 달렸다.)' },
+      { who: '리코', text: '문양이 가리키던 곳이 바로 이 동굴이야.' },
+      { who: '제로', text: '저 안쪽에 파란 불빛이 보여… 따라가 보자!' },
+    ],
+  },
+  {
+    id: 'caveExit', label: '동굴 출구 찾기', before: 'caveCleared', to: '/cave',
+    recap: [
+      { text: '(동굴 깊은 곳에서 낡은 일기장과 열쇠를 찾았다. 그 순간 동굴이 흔들리며 들어온 길이 막혀 버렸다!)' },
+      { who: '리코', text: '일기장에 "멜로디가 사라지면 모든 것은 멈춘다"라고 적혀 있어…' },
+      { who: '제로', text: '일단 나가자! 지도 표지판을 보고 다른 출구를 찾아야 해.' },
+    ],
+  },
+  {
+    id: 'xylo', label: '멈춘 하모니아, 자일로 대화', before: 'plazaOpen', to: '/world', from: 'myroom',
+    recap: [
+      { text: '(겨우 동굴을 빠져나오자, 도로랜드 전체에 울리던 음악이 뚝 끊겨 있었다.)' },
+      { who: '리코', text: '하모니아가 멈췄어! 놀이기구도 가로등도 전부 멈춰 버렸어.' },
+      { who: '제로', text: '자일로에게 가 보자. 마이룸 앞에 있을 거야.' },
+    ],
+  },
+  {
+    id: 'melody', label: '하모니아 멜로디 복원', before: 'harmoniaRestored', to: '/plaza',
+    recap: [
+      { text: '(자일로가 하모니아 광장 문을 열어 주었다.)' },
+      { who: '자일로', text: '하모니아는 음악을 에너지로 바꿔 도로랜드를 움직이는 장치예요. 사라진 멜로디를 되살려 주세요!' },
+      { who: '리코', text: '악보대에 멜로디 조각이 흩어져 있대. 우리 기억을 단서로 맞춰 보자.' },
+    ],
+  },
+  {
+    id: 'lights', label: '광장 조명 복구', before: 'lightsFixed', to: '/plaza', tag: '시연 ②',
+    recap: [
+      { text: '(동굴에서 찾은 일기장의 경고대로, 멜로디가 사라지자 도로랜드가 멈춰 있었다.)' },
+      { text: '(하모니아 광장의 악보대에서 멜로디를 되살리자, 하모니아가 다시 노래하기 시작했다.)' },
+      { who: '제로', text: '놀이기구가 다시 돌아간다! 그런데 광장은 아직 깜깜해.' },
+      { who: '리코', text: '조명 제어반에서 어두울 때 불이 켜지도록 조건을 만들어 주면 돼!' },
+    ],
+  },
+  {
+    id: 'facility', label: '방문객 요청 시설 설치', before: 'facilities', to: '/plaza',
+    recap: [
+      { text: '(광장에 불이 들어오자 방문객들이 하나둘 돌아왔다.)' },
+      { who: '제로', text: '방문객들이 뭔가 필요하대. 요청을 듣고 맞는 시설을 설치해 주자!' },
+    ],
+  },
+  {
+    id: 'shop', label: '상점 재개장 준비', before: 'shopReopened', to: '/world', from: 'plaza',
+    recap: [
+      { text: '(벤치, 분수, 포토존이 생기자 광장이 북적이기 시작했다.)' },
+      { who: '리코', text: '이제 문 닫은 상점도 다시 열 수 있겠어. 광장 서쪽 상점으로 가 보자!' },
+    ],
+  },
+  {
+    id: 'cubes', label: '회전목마 옆 큐브 사건', before: 'cubesFound', to: '/world', from: 'carousel',
+    recap: [
+      { text: '(상점이 다시 문을 열던 그때, 회전목마 쪽에서 덜컹! 하고 무언가 움직이는 소리가 들렸다.)' },
+      { who: '리코', text: '회전목마 옆 오래된 돌 구조물이 열렸어! 가 보자!' },
+    ],
+  },
+  {
+    id: 'signs', label: '회전목마 안내판 정리', before: 'signsDone', to: '/world', from: 'carousel',
+    recap: [
+      { text: '(큐브 속으로 사라졌던 리코를 강사님 수업 「시그널 브레이크」로 구해 냈다.)' },
+      { who: '리코', text: '구해 줘서 고마워! 그런데 큐브 소동 때문에 회전목마 주변 안내판이 엉망이 됐대.' },
+      { who: '자일로', text: '방문객들이 길을 헤매고 있어요. 안내판을 시설 이름과 방향에 맞게 정리해 줄래요?' },
+    ],
+  },
+  {
+    id: 'parts', label: '보이드 부품 모으기', before: 'parts', to: '/world', from: 'myroom',
+    recap: [
+      { text: '(회전목마에서 코덱스의 편지를, 리코는 나무 상자를 찾았다. 상자 속에는 작은 로봇 설계도가 들어 있었다.)' },
+      { who: '자일로', text: '몸통에 V.I.D라고 적힌 로봇이네요. 부품만 있으면 만들 수 있어요!' },
+      { who: '제로', text: '도로랜드 곳곳에서 부품을 모으자. 미니맵의 주황 점이야!' },
+    ],
+  },
+  {
+    id: 'assembly', label: '보이드 조립 (연구실)', before: 'voidBuilt', to: '/world', from: 'myroom',
+    recap: [
+      { text: '(도로랜드 곳곳을 달려 보이드 부품 다섯 개를 모두 모았다.)' },
+      { who: '자일로', text: '연구실로 와요! 같이 조립해서 작동 시험을 해 봐요.' },
+    ],
+  },
+  {
+    id: 'after', label: '메인 스토리 완료 후', before: null, to: '/',
+    recap: [
+      { text: '(보이드를 깨우고, 숲의 수호자 코덱스를 만났다. 메인 스토리 완료!)' },
+      { who: '제로', text: '이제 도로랜드에서 매일 할 일이 생겼어. 오늘의 루트부터 확인해 보자!' },
+    ],
+  },
 ]
+export const sceneOf = (id) => SCENES.find((s) => s.id === id)

@@ -736,3 +736,10 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .arcade-cover p { margin: 0; max-width: 360px; font-size: 14px; line-height: 1.55; }
 .arcade-cover small { opacity: 0.8; }
 @media (max-width: 640px) { .pc-desktop { grid-template-columns: 1fr; } }
+/* 시연 장면 이동 전 '지금까지의 이야기' */
+.demo-recap { position: fixed; inset: 0; z-index: 70; background: rgba(12, 18, 32, 0.72); }
+.demo-recap-title { position: absolute; top: 18%; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; color: #fff; text-align: center; }
+.demo-recap-title small { font-size: 13px; letter-spacing: 0.18em; opacity: 0.8; }
+.demo-recap-title b { font-size: 28px; font-weight: 900; }
+.demo-recap-title .btn-ghost { margin-top: 6px; padding: 6px 14px; font-size: 13px; background: rgba(255, 255, 255, 0.15); color: #fff; border-color: rgba(255, 255, 255, 0.4); }
+.demo-recap .dialog { z-index: 71; }
