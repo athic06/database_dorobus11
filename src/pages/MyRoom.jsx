@@ -8,7 +8,8 @@ import ViewControls from '../myroom/ViewControls.jsx'
 import Portal, { PORTAL_POS } from '../myroom/Portal.jsx'
 import Door, { DOOR_POS } from '../myroom/Door.jsx'
 import Car, { CAR_POS } from '../myroom/Car.jsx'
-import { PianoSofa, OwnedFurniture } from '../myroom/Furniture.jsx'
+import { PianoSofa, OwnedFurniture, ComputerDesk } from '../myroom/Furniture.jsx'
+import ComputerScreen from '../components/ComputerScreen.jsx'
 import ShopModal from '../myroom/ShopModal.jsx'
 import CarCheckMission from '../missions/CarCheckMission.jsx'
 import DialogBox from '../components/DialogBox.jsx'
@@ -55,9 +56,14 @@ const NEED_LICENSE_LINES = [
 ]
 
 const SOFA_POS = [-6.5, 0, 6]
+// 컴퓨터 책상 (왼쪽 벽). 의자에 앉으면 로봇이 모니터(-x)를 본다
+const DESK_POS = [-9.25, 0, 0.2]
+const CHAIR_POS = [-8.1, 0, 0.2]
 
 const PROMPTS = {
   sofa: '피아노 소파 · 미니게임으로 전환',
+  desk: '컴퓨터 책상 · 앉아서 미니게임',
+
   license: '운전면허증 챙기기',
   portal: '상점 입장',
   door: '외출하기',
@@ -68,7 +74,8 @@ export default function MyRoom() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, owned, progress, setProgress } = useStore()
-  const posRef = useRef(new THREE.Vector3(0, 0, 2))
+  // 상점 공간에서 돌아오면 포탈 앞에서 시작한다
+  const posRef = useRef(new THREE.Vector3(...(location.state?.from === 'store' ? [7.6, 0, -4] : [0, 0, 2])))
   const targetRef = useRef(null)
   const view = useRef({ ...INITIAL_VIEW })
   // 다른 화면의 "다음 행동" 버튼으로 들어오면 그 창을 바로 연다 (상점 · 셀 숨기기 · 테마파크)
@@ -87,6 +94,7 @@ export default function MyRoom() {
     { id: 'door', pos: DOOR_POS },
     { id: 'car', pos: CAR_POS, radius: 2.6, hidden: !carVisible },
     { id: 'sofa', pos: SOFA_POS, radius: 2.8 },
+    { id: 'desk', pos: CHAIR_POS, radius: 1.9 },
     { id: 'license', pos: LICENSE_POS, radius: 1.8, hidden: !needLicense },
   ])
 
@@ -122,7 +130,11 @@ export default function MyRoom() {
   }, [])
 
   const interact = (id) => {
-    if (id === 'portal') setPanel('shop')
+    if (id === 'portal') navigate('/store')
+    if (id === 'desk') {
+      posRef.current.set(...CHAIR_POS)
+      setPanel('computer')
+    }
     if (id === 'sofa') setPanel(progress.sofaBroken ? 'fix-sofa' : 'piano')
     if (id === 'door') {
       if (!progress.classDone) say(LOCKED_LINES, () => setDialog(null))
@@ -175,10 +187,11 @@ export default function MyRoom() {
         <Room />
         <Door locked={!progress.classDone} />
         <PianoSofa position={SOFA_POS} rotation={[0, Math.PI / 4, 0]} />
+        <ComputerDesk position={DESK_POS} />
         <OwnedFurniture owned={owned} />
         {carVisible && <Car checked={progress.carCheckDone} />}
         {needLicense && <License name={user.name} />}
-        <Portal active={near === 'portal'} onClick={() => (near === 'portal' ? setPanel('shop') : null)} />
+        <Portal active={near === 'portal'} onClick={() => (near === 'portal' ? navigate('/store') : null)} />
         <Robot
           posRef={posRef}
           targetRef={targetRef}
@@ -188,6 +201,8 @@ export default function MyRoom() {
           bubble={bubble}
           onMove={onMove}
           frozen={busy}
+          seated={panel === 'computer'}
+          face={panel === 'computer' ? -Math.PI / 2 : null}
         />
       </Canvas>
 
@@ -208,6 +223,12 @@ export default function MyRoom() {
       {panel === 'park' && <ParkPanel onClose={() => setPanel(null)} onOpenShop={() => setPanel('shop')} />}
       {panel === 'shop' && <ShopModal onClose={() => setPanel(null)} />}
       {panel === 'piano' && <PianoGame onClose={() => setPanel(null)} />}
+      {panel === 'computer' && (
+        <ComputerScreen
+          onClose={() => { setPanel(null); posRef.current.set(CHAIR_POS[0] + 1.2, 0, CHAIR_POS[2]) }}
+          onPiano={() => setPanel('piano')}
+        />
+      )}
       {panel === 'editor' && <TreasureEditor onClose={() => setPanel(null)} onOpenShop={() => setPanel('shop')} />}
       {panel === 'license' && (
         <LicenseCard

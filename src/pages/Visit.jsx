@@ -9,7 +9,7 @@ import ViewControls from '../myroom/ViewControls.jsx'
 import Portal from '../myroom/Portal.jsx'
 import Door from '../myroom/Door.jsx'
 import Car from '../myroom/Car.jsx'
-import { PianoSofa, OwnedFurniture } from '../myroom/Furniture.jsx'
+import { PianoSofa, OwnedFurniture, ComputerDesk } from '../myroom/Furniture.jsx'
 import RoomHud from '../components/RoomHud.jsx'
 import { useKeyboard } from '../myroom/useKeyboard.js'
 import { useProximity } from '../game/useProximity.js'
@@ -130,6 +130,7 @@ export default function Visit() {
         <Room />
         <Door locked={false} />
         <PianoSofa position={SPOT_POS.sofa} rotation={[0, Math.PI / 4, 0]} />
+        <ComputerDesk position={[-9.25, 0, 0.2]} />
         <OwnedFurniture owned={room.owned} />
         <Car checked />
         <Portal active={false} onClick={() => {}} />

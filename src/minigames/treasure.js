@@ -8,8 +8,14 @@ export const HIDE_SPOTS = {
   lamp: { name: '스탠드 조명', icon: '💡' },
   rug: { name: '동그란 러그', icon: '🟣' },
   shelf: { name: '책장', icon: '📚' },
+  desk: { name: '컴퓨터 책상', icon: '💻' },
+  bed: { name: '침대', icon: '🛏️' },
+  tv: { name: 'TV', icon: '📺' },
+  beanbag: { name: '빈백 소파', icon: '🛋️' },
+  aquarium: { name: '어항', icon: '🐠' },
+  guitar: { name: '통기타', icon: '🎸' },
 }
-export const BASE_SPOTS = ['sofa', 'portal', 'door', 'car']
+export const BASE_SPOTS = ['sofa', 'portal', 'door', 'car', 'desk']
 export const spotsFor = (owned) => [...BASE_SPOTS, ...owned.filter((id) => HIDE_SPOTS[id])]
 
 // 같은 브라우저에서 플레이한 계정이 없어도 체험할 수 있는 예시 친구 방
@@ -28,4 +34,10 @@ export const SPOT_POS = {
   plant: [8.6, 0, -8.6],
   lamp: [-8.4, 0, -8.6],
   shelf: [2.5, 0, -9.65],
+  desk: [-8.1, 0, 0.2],
+  bed: [-7.4, 0, -4.6],
+  tv: [6.3, 0, -8.6],
+  beanbag: [6.3, 0, -6.6],
+  aquarium: [8.4, 0, 1.6],
+  guitar: [-8.8, 0, 3.4],
 }

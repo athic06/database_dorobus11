@@ -32,7 +32,8 @@ function lerpAngle(a, b, t) {
 }
 
 // frozen: 대사·미션 창이 떠 있는 동안 움직이지 않게 한다.
-export default function Robot({ posRef, targetRef, keys, view, name, bubble, onMove, bounds = ROOM_BOUNDS, colliders = [], frozen = false }) {
+// seated: 의자에 앉은 자세(몸을 낮춤), face: 바라볼 방향(라디안, 앉아 있을 때 책상 쪽)
+export default function Robot({ posRef, targetRef, keys, view, name, bubble, onMove, bounds = ROOM_BOUNDS, colliders = [], frozen = false, seated = false, face = null }) {
   const group = useRef()
   const body = useRef()
   const { camera } = useThree()
@@ -92,6 +93,8 @@ export default function Robot({ posRef, targetRef, keys, view, name, bubble, onM
       }
     }
     group.current.position.copy(posRef.current)
+    if (face !== null) group.current.rotation.y = lerpAngle(group.current.rotation.y, face, 1 - Math.pow(0.001, dt))
+    group.current.position.y = seated ? 0.45 : 0
     const t = state.clock.elapsedTime
     body.current.position.y = moving ? Math.abs(Math.sin(t * 12)) * 0.08 : Math.sin(t * 2) * 0.02
 

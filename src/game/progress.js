@@ -50,6 +50,7 @@ export const INITIAL_PROGRESS = {
   parkCollectAt: '', // 운영 수익을 마지막으로 받은 시각 (ISO)
   course: null, // 수강 중인 수업 (game/courses.js의 id). 그 수업의 미션이 월드에 나타난다
   courseDone: [], // 마친 수업 연계 월드 미션
+  arcade: { best: 0, rewarded: "" }, // 컴퓨터 미니게임 「셀 캐치」 최고 점수, 보상 받은 날
   attempts: {}, // 미션별 시도 기록 { 'car-check': { tries, wrong } }
 }
 

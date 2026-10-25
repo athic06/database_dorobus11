@@ -19,7 +19,7 @@ const LEVELS = [
 // 같은 브라우저에 기록이 없어도 랭킹을 볼 수 있게 넣은 예시 기록
 const EXAMPLE_RECORDS = { lv1: [['예시 · 도로 친구 하나', 6]], lv2: [['예시 · 도로 친구 하나', 8], ['예시 · 도로 친구 둘', 9]], lv3: [['예시 · 도로 친구 둘', 12]] }
 
-function Challenge() {
+export function Challenge() {
   const { user, progress, setProgress, otherPlayers, recordAttempt } = useStore()
   const [lv, setLv] = useState('lv1')
   const [msg, setMsg] = useState('')

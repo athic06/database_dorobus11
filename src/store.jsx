@@ -12,6 +12,13 @@ export const SHOP_ITEMS = [
   { id: 'lamp', name: '스탠드 조명', price: 300, desc: '방을 따뜻하게 밝혀요', color: '#F5B841' },
   { id: 'rug', name: '동그란 러그', price: 150, desc: '푹신한 원형 러그', color: '#E57E9A' },
   { id: 'shelf', name: '책장', price: 400, desc: '수업 기록을 꽂아둘 책장', color: '#8B5E3C' },
+  { id: 'poster', name: '도로랜드 포스터', price: 100, desc: '벽에 붙이는 하모니아 포스터', color: '#4E8BFF' },
+  { id: 'clock', name: '벽시계', price: 150, desc: '째깍째깍 파란 벽시계', color: '#7FB4EA' },
+  { id: 'beanbag', name: '빈백 소파', price: 250, desc: '푹 파묻히는 노란 빈백', color: '#F5B841' },
+  { id: 'guitar', name: '통기타', price: 350, desc: '벽에 기대 둔 통기타', color: '#C8714A' },
+  { id: 'aquarium', name: '어항', price: 450, desc: '물고기 세 마리가 사는 어항', color: '#5AC8FA' },
+  { id: 'tv', name: 'TV', price: 500, desc: '빈백 앞에 놓는 큰 TV', color: '#2B2F3A' },
+  { id: 'bed', name: '침대', price: 600, desc: '하늘색 이불 침대', color: '#7FB4EA' },
 ]
 
 const SESSION_KEY = 'dorobus.session'

@@ -14,6 +14,7 @@ import PortraitGallery from './pages/PortraitGallery.jsx'
 import CharacterGallery from './pages/CharacterGallery.jsx'
 import MissionPreview from './pages/MissionPreview.jsx'
 import Courses from './pages/Courses.jsx'
+import Store from './pages/Store.jsx'
 import DemoPanel, { JumpRedirect } from './components/DemoPanel.jsx'
 import './styles.css'
 
@@ -38,6 +39,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/world" element={<RequireAuth><World /></RequireAuth>} />
           <Route path="/cave" element={<RequireAuth><Cave /></RequireAuth>} />
           <Route path="/plaza" element={<RequireAuth><Plaza /></RequireAuth>} />
+          <Route path="/store" element={<RequireAuth><Store /></RequireAuth>} />
           <Route path="/courses" element={<RequireAuth><Courses /></RequireAuth>} />
           <Route path="/play" element={<RequireAuth><Play /></RequireAuth>} />
           <Route path="/visit/:id" element={<RequireAuth><Visit /></RequireAuth>} />
