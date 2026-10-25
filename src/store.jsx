@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { ACCOUNTS } from './accounts.js'
+import { ACCOUNTS, DEMO_STAGES } from './accounts.js'
 import { INITIAL_PROGRESS, STORY_DONE } from './game/progress.js'
 import { MAX_VISIT_LOG, VISIT_REWARD } from './game/visits.js'
 import { checkInPatch, dailyOf } from './game/routine.js'
@@ -86,6 +86,8 @@ export function StoreProvider({ children }) {
   }
 
   const setProgress = (patch) => setData((d) => ({ ...d, progress: { ...d.progress, ...patch } }))
+  // 시연 도구: 진행 상태를 통째로 바꾼다 (CELL, 가구는 그대로)
+  const replaceProgress = (progress) => setData((d) => ({ ...d, progress }))
 
   // 시설 설치·강화: CELL 차감과 진행 상태 변경을 한 번에 처리한다 (DB라면 한 트랜잭션)
   const spendCell = (cost, patch) => {
@@ -130,11 +132,11 @@ export function StoreProvider({ children }) {
       return { ...d, progress: { ...d.progress, attempts: { ...d.progress.attempts, [mission]: next } } }
     })
 
-  // 시연 계정(preset 있음)은 CELL·가구까지 시연 시작 상태로 되돌린다
-  const resetProgress = () =>
+  // 시연 계정(preset 있음)은 CELL·가구까지 시연 상태로 되돌린다. stage: DEMO_STAGES의 이름 (없으면 시작 상태)
+  const resetProgress = (stage) =>
     setData((d) =>
       user?.preset
-        ? { cell: user.cell, owned: [], progress: { ...INITIAL_PROGRESS, ...user.preset } }
+        ? { cell: user.cell, owned: [], progress: { ...INITIAL_PROGRESS, ...(DEMO_STAGES[stage] || user.preset) } }
         : { ...d, progress: { ...INITIAL_PROGRESS } },
     )
 
@@ -189,6 +191,7 @@ export function StoreProvider({ children }) {
         checkIn,
         recordAttempt,
         resetProgress,
+        replaceProgress,
         skipStory,
         otherPlayers,
         updateFriendGame,

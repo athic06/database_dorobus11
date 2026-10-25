@@ -15,6 +15,8 @@ import HomeworkMission from '../missions/HomeworkMission.jsx'
 import { HOMEWORK, pendingHomework } from '../game/homework.js'
 import DialogBox from '../components/DialogBox.jsx'
 import RoomHud from '../components/RoomHud.jsx'
+import ParkPanel from '../components/ParkPanel.jsx'
+import { parkOpen } from '../game/park.js'
 import { useKeyboard } from '../myroom/useKeyboard.js'
 import { useProximity } from '../game/useProximity.js'
 import { FACILITY_GOAL } from '../game/progress.js'
@@ -122,7 +124,8 @@ export default function Plaza() {
     }
   }
 
-  const busy = !!dialog || !!mission
+  const [showPark, setShowPark] = useState(false)
+  const busy = !!dialog || !!mission || showPark
   const keys = useKeyboard((code) => {
     if (code === 'KeyE' && !busy && nearRef.current) interact(nearRef.current)
   })
@@ -166,6 +169,12 @@ export default function Plaza() {
       </Canvas>
 
       <RoomHud title={<>하모니아 광장 <small className="space-role">친구들이 모이는 공연·시설 광장 · 일일 퀘스트</small></>} backTo="/world" backLabel="← 도로랜드" onChat={setBubble} />
+      {parkOpen(progress) && !busy && (
+        <div className="hud room-side">
+          <button className="side-btn park-btn" onClick={() => setShowPark(true)}>🎡 테마파크 운영</button>
+        </div>
+      )}
+      {showPark && <ParkPanel onClose={() => setShowPark(false)} />}
       {near && !busy && (
         <button className="hud prompt" onClick={() => interact(near)}>E · {PROMPTS[near]}</button>
       )}

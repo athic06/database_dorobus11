@@ -14,6 +14,7 @@ import PortraitGallery from './pages/PortraitGallery.jsx'
 import CharacterGallery from './pages/CharacterGallery.jsx'
 import MissionPreview from './pages/MissionPreview.jsx'
 import Courses from './pages/Courses.jsx'
+import DemoPanel, { JumpRedirect } from './components/DemoPanel.jsx'
 import './styles.css'
 
 function RequireAuth({ children }) {
@@ -43,8 +44,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/dev/portraits" element={import.meta.env.DEV ? <PortraitGallery /> : <Navigate to="/" replace />} />
           <Route path="/dev/characters" element={<CharacterGallery />} />
           <Route path="/dev/mission/:name" element={import.meta.env.DEV ? <RequireAuth><MissionPreview /></RequireAuth> : <Navigate to="/" replace />} />
+          <Route path="/jump" element={<RequireAuth><JumpRedirect /></RequireAuth>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <DemoPanel />
       </HashRouter>
     </StoreProvider>
   </React.StrictMode>,

@@ -20,7 +20,8 @@ export const VISITORS_PER = { facility: 4, furniture: 2, artwork: 2 }
 export const INCOME_CAP_MIN = 120
 
 // 챕터 3에서 상점이 다시 문을 열면(광장이 살아나면) 운영을 시작할 수 있다
-export const parkOpen = (p) => p.shopReopened
+// 시연 계정(demoPark)은 조명 미션 직후 바로 운영을 보여 줄 수 있게 미리 열어 둔다
+export const parkOpen = (p) => p.shopReopened || p.demoPark
 
 export const levelOf = (p, id) => p.park?.[id] || 1
 export const upgradeCost = (a, level) => a.baseCost * level
