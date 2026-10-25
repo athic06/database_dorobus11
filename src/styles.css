@@ -699,3 +699,4 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .demo-scene { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border: 1.5px solid #e3e6ec; border-radius: 10px; background: #fff; text-align: left; font-size: 13.5px; font-weight: 600; cursor: pointer; }
 .demo-scene:hover { border-color: #2f7bff; background: #f3f7ff; }
 .demo-scene em { flex: none; padding: 2px 7px; border-radius: 999px; background: #2f7bff; color: #fff; font-size: 11px; font-style: normal; font-weight: 800; }
+.demo-restart { width: 100%; font-size: 13px; }

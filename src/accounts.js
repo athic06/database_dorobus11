@@ -2,6 +2,8 @@
 // 실제 서비스로 옮길 때는 서버(DB)에서 비밀번호 해시로 확인해야 한다.
 // 발표 시연 단계. demoPark: 시연 계정은 상점 재개장 전에도 테마파크 운영(어트랙션 강화, 시설 설치)을 열어 둔다
 export const DEMO_STAGES = {
+  // 처음부터: 첫 수업도 듣기 전 (CELL, 가구, 출석, 퀘스트 기록까지 모두 처음 상태)
+  start: { demoPark: true },
   // 시연 ① 마이룸: 자동차 점검을 마치고 운전면허증을 받기 직전 → 받침대에서 면허증 GET
   license: { classDone: true, introSeen: true, carCheckDone: true, demoPark: true },
   // 시연 ② 하모니아 광장: 멜로디 복원까지 끝나고 조명 복구 직전 → 조명 미션 → 옆의 방문객 요청 → 바로 어트랙션 강화와 설치

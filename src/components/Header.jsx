@@ -68,6 +68,7 @@ export default function Header({ active = '대시보드' }) {
                 </div>
                 {user.preset ? (
                   <>
+                    <button className="menu-plain" onClick={() => { resetProgress('start'); setMenu(false) }}>🔄 처음부터 다시 시작</button>
                     <button className="menu-plain" onClick={() => { resetProgress('license'); setMenu(false); navigate('/myroom') }}>시연 ① 운전면허 받기 직전 (마이룸)</button>
                     <button className="menu-plain" onClick={() => { resetProgress('lights'); setMenu(false); navigate('/plaza') }}>시연 ② 조명 미션 직전 (광장)</button>
                   </>

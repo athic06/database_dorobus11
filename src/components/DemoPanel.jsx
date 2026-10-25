@@ -7,7 +7,7 @@ import { INITIAL_PROGRESS } from '../game/progress.js'
 // 시연 계정 전용 🎬 버튼: 지금 단계 바로 완료, 원하는 장면으로 바로 이동.
 // 시연 중 미션이 막히거나 오류가 나도 흐름을 이어 가기 위한 것이라 일반 계정에는 보이지 않는다.
 export default function DemoPanel() {
-  const { user, progress, replaceProgress, setProgress } = useStore()
+  const { user, progress, replaceProgress, setProgress, resetProgress } = useStore()
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const [open, setOpen] = useState(false)
@@ -20,6 +20,13 @@ export default function DemoPanel() {
     if (!patch) return
     setProgress(patch)
     setNote(`✓ 「${step.label}」 완료 처리했어요`)
+  }
+  const restart = () => {
+    if (!window.confirm('시연 계정을 처음 상태로 되돌릴까요? (CELL, 가구, 진행 기록 모두 초기화)')) return
+    resetProgress('start')
+    setOpen(false)
+    setNote('')
+    navigate('/jump', { state: { to: '/' } })
   }
   const jump = (scene) => {
     // CELL과 가구는 그대로 두고, 진행 상태만 그 장면 직전으로 바꾼다
@@ -44,6 +51,7 @@ export default function DemoPanel() {
             <button className="btn-primary" disabled={!step} onClick={completeNow}>이 단계 바로 완료</button>
             {note && <small className="demo-note">{note}</small>}
           </div>
+          <button className="btn-ghost demo-restart" onClick={restart}>🔄 처음부터 다시 시작 (첫 수업 전)</button>
           <small className="demo-sub">장면 바로 가기 (그 장면 직전 상태로 바꾸고 이동해요)</small>
           <div className="demo-scenes">
             {SCENES.map((s) => (
