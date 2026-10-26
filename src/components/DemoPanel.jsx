@@ -46,7 +46,7 @@ export default function DemoPanel() {
   const go = ({ scene, reset }) => {
     setRecap(null)
     if (reset) resetProgress(reset)
-    else replaceProgress({ ...INITIAL_PROGRESS, ...stateBefore(scene.before), homeworkDone: ['classDone'], demoPark: true })
+    else replaceProgress({ ...INITIAL_PROGRESS, ...stateBefore(scene.before), demoPark: true })
     // 같은 화면이어도 새로 그리도록 /jump를 거쳐 이동한다
     navigate('/jump', { state: { to: scene.to, from: scene.from } })
   }

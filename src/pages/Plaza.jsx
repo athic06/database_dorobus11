@@ -11,8 +11,6 @@ import PlazaScene, { PLAZA_RADIUS, SPOTS } from '../plaza/PlazaScene.jsx'
 import MelodyMission from '../missions/MelodyMission.jsx'
 import LightsMission from '../missions/LightsMission.jsx'
 import FacilityMission from '../missions/FacilityMission.jsx'
-import HomeworkMission from '../missions/HomeworkMission.jsx'
-import { HOMEWORK, pendingHomework } from '../game/homework.js'
 import DialogBox from '../components/DialogBox.jsx'
 import RoomHud from '../components/RoomHud.jsx'
 import ParkPanel from '../components/ParkPanel.jsx'
@@ -83,7 +81,6 @@ export default function Plaza() {
   const [mission, setMission] = useState(null)
   const [bubble, setBubble] = useState('')
   const facilitiesDone = progress.facilities.length >= FACILITY_GOAL
-  const homework = pendingHomework(progress)
 
   const say = (lines, onDone) => setDialog({ lines, onDone: onDone || (() => setDialog(null)) })
 
@@ -93,7 +90,6 @@ export default function Plaza() {
     { id: 'visitor', pos: SPOTS.visitor, radius: 2.4, hidden: !progress.lightsFixed || facilitiesDone },
     { id: 'elder', pos: SPOTS.elder, radius: 2.4, hidden: !progress.harmoniaRestored },
     { id: 'gate', pos: SPOTS.gate, radius: 2 },
-    { id: 'helper', pos: SPOTS.helper, radius: 2.6, hidden: !homework },
     { id: 'board', pos: BOARD_POS, radius: 2.6, hidden: !storyDone(progress) },
   ])
 
@@ -121,7 +117,6 @@ export default function Plaza() {
     }
     if (id === 'visitor') setMission('facility')
     if (id === 'board') setMission('quest')
-    if (id === 'helper') say([{ who: HOMEWORK[homework].who, text: '저기… 혹시 도와줄 수 있어요?' }, { who: '제로', text: '수업에서 배운 걸 써 볼 기회야!' }], () => { setDialog(null); setMission('homework') })
     if (id === 'elder') {
       const i = Math.min(progress.facilities.length, LORE.length - 1)
       say([{ who: '오래된 방문객', text: LORE[i] }])
@@ -140,7 +135,6 @@ export default function Plaza() {
     visitor: '방문객 요청 듣기',
     elder: '오래된 방문객과 이야기하기',
     gate: '광장 나가기',
-    helper: '수업 과제 · 도움이 필요한 NPC 돕기',
     board: '📋 일일 퀘스트 게시판',
   }
   const lit = progress.harmoniaRestored && progress.lightsFixed
@@ -156,7 +150,7 @@ export default function Plaza() {
         <ambientLight intensity={0.35} />
         <directionalLight position={[-10, 18, 12]} intensity={0.7} castShadow shadow-mapSize={[1024, 1024]} />
         <ViewControls view={view} />
-        <PlazaScene progress={progress} helper={homework} />
+        <PlazaScene progress={progress} />
         {storyDone(progress) && <QuestBoardModel />}
         <Robot
           posRef={posRef}
@@ -208,16 +202,6 @@ export default function Plaza() {
         />
       )}
       {mission === 'quest' && <QuestPanel onClose={() => setMission(null)} />}
-      {mission === 'homework' && homework && (
-        <HomeworkMission
-          flag={homework}
-          onClose={() => setMission(null)}
-          onClear={(hw) => {
-            setMission(null)
-            say([{ who: hw.who, text: hw.thanks }, { text: `(수업 과제 완료! CELL +${hw.reward} · 대시보드 수업 카드에서 확인할 수 있어요)` }])
-          }}
-        />
-      )}
       {mission === 'facility' && (
         <FacilityMission
           onClose={() => setMission(null)}

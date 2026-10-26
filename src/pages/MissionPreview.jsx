@@ -6,7 +6,6 @@ import FacilityMission from '../missions/FacilityMission.jsx'
 import ShopRestockMission from '../missions/ShopRestockMission.jsx'
 import SignMission from '../missions/SignMission.jsx'
 import MelodyMission from '../missions/MelodyMission.jsx'
-import HomeworkMission from '../missions/HomeworkMission.jsx'
 import { AntennaMission, BatteryMission, MotorMission, SensorMission, WheelMission } from '../missions/PartMissions.jsx'
 import ContentMission from '../missions/ContentMission.jsx'
 import { CONTENT, contentOf } from '../game/content.js'
@@ -20,8 +19,6 @@ const MISSIONS = {
   facility: FacilityMission,
   shop: ShopRestockMission,
   sign: SignMission,
-  homework1: (p) => <HomeworkMission flag="classDone" {...p} />,
-  homework2: (p) => <HomeworkMission flag="rescueLessonDone" {...p} />,
   sensor: SensorMission,
   battery: BatteryMission,
   motor: MotorMission,

@@ -5,7 +5,8 @@ import DailyRoute from '../components/DailyRoute.jsx'
 import StateBanner from '../components/StateBanner.jsx'
 import { useStore } from '../store.jsx'
 import { CHAPTER_TITLES, chapterOf, continuePath, objectiveOf, storyDone } from '../game/progress.js'
-import { HOMEWORK, pendingHomework } from '../game/homework.js'
+import { ASSIGN } from '../game/courses.js'
+import { contentDone } from '../game/content.js'
 import { BREAKABLE, artworkVisitors, pendingFaults } from '../game/daily.js'
 import ArtworkPanel from '../components/ArtworkPanel.jsx'
 import VoidChat from '../components/VoidChat.jsx'
@@ -150,8 +151,8 @@ export default function Dashboard() {
               <strong>{progress.course ? 1 : 0}<small>개</small></strong>
               <span>수강 중인 수업 ›</span>
             </button>
-            <button className="stat" onClick={() => document.querySelector('.card.lesson')?.scrollIntoView({ behavior: 'smooth' })}>
-              <strong>{pendingHomework(progress) ? 1 : 0}<small>개</small></strong>
+            <button className="stat" onClick={() => navigate('/courses')}>
+              <strong>{progress.course ? ASSIGN[progress.course].filter(([id]) => !contentDone(progress, id)).length : 0}<small>개</small></strong>
               <span>제출해야 할 과제 ›</span>
             </button>
           </div>
@@ -222,23 +223,6 @@ export default function Dashboard() {
             </button>
           )}
           {notice && <p className="notice" role="status">{notice}</p>}
-          {lesson.done && HOMEWORK[lesson.flag] && (() => {
-            const hw = HOMEWORK[lesson.flag]
-            const hwDone = (progress.homeworkDone || []).includes(lesson.flag)
-            return (
-              <div className={`homework${hwDone ? ' done' : ''}`}>
-                <span className="hw-tag">📝 수업 과제</span>
-                <p><b>하모니아 광장에서 도움이 필요한 NPC를 찾아 도와주세요.</b><br />오늘 배운 「{hw.concept}」로 해결해요. 보상 CELL +{hw.reward}</p>
-                {hwDone ? (
-                  <span className="done-chip">과제 완료 ✓</span>
-                ) : progress.plazaOpen ? (
-                  <button className="btn-primary" onClick={() => navigate('/plaza')}>광장으로 가기</button>
-                ) : (
-                  <small className="hw-wait">하모니아 광장이 열리면(챕터 3) 할 수 있어요. 먼저 모험을 이어 가요!</small>
-                )}
-              </div>
-            )
-          })()}
         </section>
 
         <section className="card adventure">

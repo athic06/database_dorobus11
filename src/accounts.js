@@ -10,7 +10,7 @@ export const DEMO_STAGES = {
   lights: {
     classDone: true, introSeen: true, carCheckDone: true, licenseGot: true, licenseDate: '2026-10-21',
     caveIntroSeen: true, diaryFound: true, caveCleared: true, plazaOpen: true, harmoniaRestored: true,
-    homeworkDone: ['classDone'], demoPark: true,
+    demoPark: true,
   },
 }
 

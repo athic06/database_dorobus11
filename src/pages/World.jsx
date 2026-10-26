@@ -200,6 +200,10 @@ export default function World() {
   // 프레임이 계속 떨어지는 컴퓨터에서는 해상도를 낮추고 빛 번짐 효과를 끈다
   const [lowGfx, setLowGfx] = useState(false)
   const carMark = useRef()
+  // 미니맵을 누르거나 M 키: 지도 크게 보기 (보는 동안 차는 멈춘다)
+  const [bigMap, setBigMap] = useState(false)
+  const bigMark = useRef()
+  const lastMark = useRef('')
   const [dialog, setDialog] = useState(null)
   const [mission, setMission] = useState(null)
   const [codex, setCodex] = useState(false) // 'silhouette' | 'revealed' | false
@@ -416,8 +420,10 @@ export default function World() {
     const composition = { ferris: [[20, 12, 3], 13], coaster: [[-24, 12, 9], 7], carousel: [[10, 7, 18], 3.5], harmonia: [[8, 7, 27], 7], cave: [[4, 4, 14], 3], vault: [[5, 4, 8], 2], lab: [[10, 6, 14], 3] }[id]
     entry.enter(sceneShot(pos, PROMPTS[id] || '도로랜드', ...(composition || [])), () => executeInteraction(id))
   }
-  const busy = entry.active || !!dialog || !!mission || !!cleared || asking || chat || showLicense || showPark || !!routinePanel
+  const busy = bigMap || entry.active || !!dialog || !!mission || !!cleared || asking || chat || showLicense || showPark || !!routinePanel
   const keys = useKeyboard((code) => {
+    if (code === 'KeyM' && (bigMap || !busy)) return setBigMap(!bigMap)
+    if (code === 'Escape' && bigMap) return setBigMap(false)
     if (code === 'KeyE' && !busy && nearRef.current) interact(nearRef.current)
     if (code === 'KeyF' && !busy) {
       if (!onFoot) exitCar()
@@ -427,9 +433,9 @@ export default function World() {
 
   const onMove = (pos, h) => {
     onNear(pos)
-    if (carMark.current) {
-      carMark.current.setAttribute('transform', `translate(${toMap(pos.x)} ${toMap(pos.z)}) rotate(${180 - (h * 180) / Math.PI})`)
-    }
+    lastMark.current = `translate(${toMap(pos.x)} ${toMap(pos.z)}) rotate(${180 - (h * 180) / Math.PI})`
+    carMark.current?.setAttribute('transform', lastMark.current)
+    bigMark.current?.setAttribute('transform', lastMark.current)
   }
 
   const PROMPTS = {
@@ -572,10 +578,33 @@ export default function World() {
         )}
       </div>
       <div className="hud hud-minimap">
-        <Minimap ref={carMark} openIds={openIds} markers={markers} />
+        <Minimap ref={carMark} openIds={openIds} markers={markers} onClick={() => !busy && setBigMap(true)} />
         {p.voidBuilt && <button className="void-btn" onClick={() => setChat(true)}>🤖 보이드와 대화</button>}
         {faults.length > 0 && <p className="fault-note">오늘의 업무 · 고장 {faults.length}곳 (미니맵 빨간 점)</p>}
       </div>
+      {bigMap && (
+        <div className="map-modal" onClick={() => setBigMap(false)}>
+          <div className="map-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="도로랜드 지도">
+            <div className="map-head">
+              <b>🗺️ 도로랜드 지도</b>
+              <span className="map-legend">
+                <i style={{ background: '#2F7BFF' }} /> 갈 수 있는 곳 <i style={{ background: '#8A93A6' }} /> 아직 닫힌 곳 <i style={{ background: '#E2574C' }} /> 내 위치
+              </span>
+              <button className="cr-close" onClick={() => setBigMap(false)} aria-label="지도 닫기">×</button>
+            </div>
+            <Minimap
+              large
+              openIds={openIds}
+              markers={markers}
+              ref={(el) => {
+                bigMark.current = el
+                if (el && lastMark.current) el.setAttribute('transform', lastMark.current)
+              }}
+            />
+            <small className="map-tip">M 또는 Esc로 닫기</small>
+          </div>
+        </div>
+      )}
       {chat && <VoidChat onClose={() => setChat(false)} />}
       {mission?.startsWith('fix-') && (
         <FixMission

@@ -44,7 +44,6 @@ export const INITIAL_PROGRESS = {
   piano: { best: {}, rewarded: {} }, // 피아노 모드별 최고 점수 · 보상 받은 날짜
   visitors: [], // 내 방에 놀러 온 기록 { from, date } (최근 20개)
   visitIncome: 0, // 방문으로 받은 CELL 누적
-  homeworkDone: [], // 과제를 마친 수업의 완료 플래그 (classDone, rescueLessonDone)
   goalItem: null, // 마이룸 구매 목표로 정한 상점 가구 id
   park: {}, // 어트랙션 강화 레벨 { carousel: 2 } (없으면 Lv.1)
   parkCollectAt: '', // 운영 수익을 마지막으로 받은 시각 (ISO)

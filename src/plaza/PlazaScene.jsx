@@ -14,7 +14,6 @@ export const SPOTS = {
   visitor: [-4.5, 0, 9],
   elder: [10, 0, -4],
   gate: [0, 0, 13],
-  helper: [9.5, 0, -8.5], // 수업 과제: 도움이 필요한 NPC
 }
 export const FACILITY_POS = {
   bench: [-8.5, 0, 4],
@@ -286,7 +285,7 @@ function Booth({ art, index }) {
   )
 }
 
-export default function PlazaScene({ progress, helper }) {
+export default function PlazaScene({ progress }) {
   const restored = progress.harmoniaRestored
   const lit = restored && progress.lightsFixed
   // 어트랙션을 강화할수록 광장 방문객도 늘어난다 (game/park.js)
@@ -319,7 +318,6 @@ export default function PlazaScene({ progress, helper }) {
       {restored && lit && progress.facilities.length < 3 && (
         <Person position={SPOTS.visitor} color="#F08A3E" hair="#B9BCC4" label="방문객 · 요청 있음" />
       )}
-      {helper && <Person position={SPOTS.helper} rotation={-0.8} color={helper === 'classDone' ? '#F5B841' : '#4E8BFF'} hair="#3B2A20" scale={helper === 'classDone' ? 1.1 : 1.4} label="❗ 도움이 필요해요" />}
       {restored && <Person position={SPOTS.elder} color="#7A8CA8" hair="#E8E8EC" label="오래된 방문객" />}
     </group>
   )
