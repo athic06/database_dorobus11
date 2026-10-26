@@ -6,6 +6,7 @@ import Login from './pages/Login.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import MyRoom from './pages/MyRoom.jsx'
 import World from './pages/World.jsx'
+const WorldPreview = React.lazy(() => import('./pages/WorldPreview.jsx'))
 import Cave from './pages/Cave.jsx'
 import Plaza from './pages/Plaza.jsx'
 import Play from './pages/Play.jsx'
@@ -43,6 +44,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/courses" element={<RequireAuth><Courses /></RequireAuth>} />
           <Route path="/play" element={<RequireAuth><Play /></RequireAuth>} />
           <Route path="/visit/:id" element={<RequireAuth><Visit /></RequireAuth>} />
+          <Route path="/dev/world" element={import.meta.env.DEV ? <React.Suspense fallback={<p>미리보기 준비 중…</p>}><WorldPreview /></React.Suspense> : <Navigate to="/" replace />} />
           <Route path="/dev/portraits" element={import.meta.env.DEV ? <PortraitGallery /> : <Navigate to="/" replace />} />
           <Route path="/dev/characters" element={<CharacterGallery />} />
           <Route path="/dev/mission/:name" element={import.meta.env.DEV ? <RequireAuth><MissionPreview /></RequireAuth> : <Navigate to="/" replace />} />

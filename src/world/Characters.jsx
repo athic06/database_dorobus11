@@ -246,35 +246,50 @@ export function VoidBot({ position, rotation = 0, label = true, groupRef, happy 
 
 /* ---------- 일반 NPC ---------- */
 // 일반 NPC (방문객 · 사육사 · 정비사 등). 광장에 여럿 서 있으니 외곽선 없이 가볍게 그린다.
-export function Person({ position, rotation = 0, color = '#E57E9A', hair = '#3B2A20', hat, label, scale = 1.4 }) {
+// walk: 걷는 중이면 다리를 엉덩이 축으로 앞뒤로 엇갈려 움직이고 팔은 반대로 흔든다 (phase로 사람마다 박자를 다르게)
+export function Person({ position, rotation = 0, color = '#E57E9A', hair = '#3B2A20', hat, label, scale = 1.4, walk = false, phase = 0, pace = 7 }) {
+  const legs = [useRef(), useRef()]
+  const arms = [useRef(), useRef()]
+  const upper = useRef()
+  useFrame((st) => {
+    if (!walk) return
+    const t = st.clock.elapsedTime * pace + phase
+    const sw = Math.sin(t)
+    legs.forEach((l, i) => l.current && (l.current.rotation.x = (i ? -sw : sw) * 0.55))
+    arms.forEach((a, i) => a.current && (a.current.rotation.x = (i ? sw : -sw) * 0.5))
+    if (upper.current) upper.current.position.y = Math.abs(Math.cos(t)) * 0.035
+  })
   return (
     <group position={position} rotation={[0, rotation, 0]} scale={scale}>
-      {[-0.11, 0.11].map((x) => (
-        <group key={x}>
-          <mesh position={[x, 0.06, 0.04]} scale={[1, 0.6, 1.4]}>
+      {[-0.11, 0.11].map((x, i) => (
+        <group key={x} ref={legs[i]} position={[x, 0.68, 0]}>
+          <mesh position={[0, -0.62, 0.04]} scale={[1, 0.6, 1.4]}>
             <sphereGeometry args={[0.09, 10, 8]} />
             <Toon color="#2B2A30" />
           </mesh>
-          <mesh position={[x, 0.37, 0]}>
+          <mesh position={[0, -0.31, 0]}>
             <cylinderGeometry args={[0.08, 0.075, 0.62, 10]} />
             <Toon color="#46506A" />
           </mesh>
         </group>
       ))}
+      <group ref={upper}>
       <mesh position={[0, 0.98, 0]} castShadow scale={[1, 1, 0.8]}>
         <capsuleGeometry args={[0.25, 0.36, 6, 14]} />
         <Toon color={color} />
       </mesh>
-      {[-1, 1].map((s) => (
+      {[-1, 1].map((s, i) => (
         <group key={s} position={[s * 0.29, 1.2, 0]} rotation={[0, 0, s * 0.15]}>
-          <mesh position={[0, -0.25, 0]}>
-            <capsuleGeometry args={[0.07, 0.38, 4, 8]} />
-            <Toon color={color} />
-          </mesh>
-          <mesh position={[0, -0.52, 0]}>
-            <sphereGeometry args={[0.065, 10, 8]} />
-            <Toon color="#F7C4A2" />
-          </mesh>
+          <group ref={arms[i]}>
+            <mesh position={[0, -0.25, 0]}>
+              <capsuleGeometry args={[0.07, 0.38, 4, 8]} />
+              <Toon color={color} />
+            </mesh>
+            <mesh position={[0, -0.52, 0]}>
+              <sphereGeometry args={[0.065, 10, 8]} />
+              <Toon color="#F7C4A2" />
+            </mesh>
+          </group>
         </group>
       ))}
       <mesh position={[0, 1.6, 0]} castShadow>
@@ -301,6 +316,7 @@ export function Person({ position, rotation = 0, color = '#E57E9A', hair = '#3B2
           <Toon color={hat} />
         </mesh>
       )}
+      </group>
       {label && <Label y={2.4} text={label} />}
     </group>
   )

@@ -1,7 +1,9 @@
-import { useMemo, useRef } from 'react'
+import { useLayoutEffect, useMemo, useRef } from 'react'
+import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import { Harmonia } from '../world/Landmarks.jsx'
+import { Person as WorldPerson } from '../world/Characters.jsx'
 import { ATTRACTIONS, levelOf } from '../game/park.js'
 
 // 챕터 3 하모니아 광장 (걸어서 둘러보는 장면). 광장 중심이 원점, 정문이 남쪽(+z).
@@ -22,6 +24,11 @@ export const FACILITY_POS = {
   balloon: [-3, 0, -11],
 }
 
+const LAMP_POS = Array.from({ length: 8 }, (_, i) => {
+  const a = (i / 8) * Math.PI * 2 + Math.PI / 8
+  return [Math.sin(a) * 12.4, 0, Math.cos(a) * 12.4]
+})
+
 function Tag({ y = 2.4, children }) {
   return (
     <Html position={[0, y, 0]} center zIndexRange={[1, 0]}>
@@ -30,28 +37,12 @@ function Tag({ y = 2.4, children }) {
   )
 }
 
-function Person({ position, color = '#E57E9A', hair = '#3B2A20', scale = 1, label }) {
+// 광장 사람들: 월드와 같은 툰 모델을 쓰고, 돌아다니는 사람은 다리를 앞뒤로 움직이며 걷는다
+function Person({ position, rotation = 0, color = '#E57E9A', hair = '#3B2A20', scale = 1, label, walk = false, phase = 0, pace }) {
   return (
-    <group position={position} scale={scale}>
-      {[-0.13, 0.13].map((x) => (
-        <mesh key={x} position={[x, 0.35, 0]}>
-          <cylinderGeometry args={[0.09, 0.1, 0.7, 8]} />
-          <meshStandardMaterial color="#4A4F5C" />
-        </mesh>
-      ))}
-      <mesh position={[0, 1.0, 0]} castShadow>
-        <capsuleGeometry args={[0.28, 0.5, 4, 10]} />
-        <meshStandardMaterial color={color} />
-      </mesh>
-      <mesh position={[0, 1.65, 0]} castShadow>
-        <sphereGeometry args={[0.27, 16, 16]} />
-        <meshStandardMaterial color="#F1C8A4" />
-      </mesh>
-      <mesh position={[0, 1.8, -0.04]} scale={[1.05, 0.65, 1.05]}>
-        <sphereGeometry args={[0.27, 16, 16]} />
-        <meshStandardMaterial color={hair} />
-      </mesh>
-      {label && <Tag y={2.3}>{label}</Tag>}
+    <group position={position}>
+      <WorldPerson rotation={rotation} color={color} hair={hair} scale={scale} walk={walk} phase={phase} pace={pace} />
+      {label && <Tag y={2.3 * scale}>{label}</Tag>}
     </group>
   )
 }
@@ -75,29 +66,139 @@ function Wanderers({ count }) {
       const p = people[i]
       if (!p) return
       const a = p.phase + t * p.speed * (i % 2 ? 1 : -1)
-      ch.position.set(Math.cos(a) * p.r, Math.abs(Math.sin(t * 6 + i)) * 0.05, Math.sin(a) * p.r)
+      ch.position.set(Math.cos(a) * p.r, 0, Math.sin(a) * p.r)
       ch.rotation.y = -a + (i % 2 ? 0 : Math.PI)
     })
   })
   return (
     <group ref={group}>
-      {people.map((p, i) => <Person key={i} position={[0, 0, 0]} color={p.color} hair={p.hair} scale={p.scale} />)}
+      {/* 걸음 박자는 실제로 걷는 빠르기(각속도 × 반지름)에 맞춘다 */}
+      {people.map((p, i) => <Person key={i} position={[0, 0, 0]} color={p.color} hair={p.hair} scale={p.scale} walk phase={p.phase} pace={(p.speed * p.r * 4.2) / p.scale} />)}
     </group>
   )
 }
 
+// 바닥에 번지는 둥근 불빛 (가운데가 밝고 가장자리로 갈수록 투명)
+let glowTexture
+function glowMap() {
+  if (glowTexture) return glowTexture
+  const c = document.createElement('canvas')
+  c.width = c.height = 128
+  const g = c.getContext('2d')
+  const grad = g.createRadialGradient(64, 64, 0, 64, 64, 64)
+  grad.addColorStop(0, 'rgba(255,214,140,0.9)')
+  grad.addColorStop(0.45, 'rgba(255,190,110,0.35)')
+  grad.addColorStop(1, 'rgba(255,170,90,0)')
+  g.fillStyle = grad
+  g.fillRect(0, 0, 128, 128)
+  glowTexture = new THREE.CanvasTexture(c)
+  glowTexture.colorSpace = THREE.SRGBColorSpace
+  return glowTexture
+}
+
+// 광장 가로등: 가는 철제 기둥 위 육각 랜턴. 불이 켜지면 유리 안 전구만 빛나고 바닥에 불빛이 번진다.
+const IRON = '#2E3138'
 function Lamp({ position, lit }) {
   return (
     <group position={position}>
-      <mesh position={[0, 1.8, 0]}>
-        <cylinderGeometry args={[0.08, 0.12, 3.6, 8]} />
-        <meshStandardMaterial color="#3A3D45" />
+      <mesh position={[0, 0.15, 0]} castShadow>
+        <cylinderGeometry args={[0.2, 0.26, 0.3, 12]} />
+        <meshStandardMaterial color={IRON} metalness={0.6} roughness={0.4} />
       </mesh>
-      <mesh position={[0, 3.75, 0]}>
-        <sphereGeometry args={[0.32, 16, 16]} />
-        <meshStandardMaterial color={lit ? '#FFF1C2' : '#8A8F99'} emissive={lit ? '#FFD27A' : '#000'} emissiveIntensity={lit ? 2 : 0} toneMapped={!lit} />
+      <mesh position={[0, 1.75, 0]} castShadow>
+        <cylinderGeometry args={[0.05, 0.075, 3.2, 10]} />
+        <meshStandardMaterial color={IRON} metalness={0.6} roughness={0.4} />
       </mesh>
-      {lit && <pointLight position={[0, 3.6, 0]} color="#FFD27A" intensity={14} distance={11} />}
+      {[0.9, 3.25].map((y) => (
+        <mesh key={y} position={[0, y, 0]}>
+          <torusGeometry args={[0.08, 0.02, 6, 16]} />
+          <meshStandardMaterial color="#B08D57" metalness={0.8} roughness={0.3} />
+        </mesh>
+      ))}
+      <group position={[0, 3.6, 0]}>
+        {/* 랜턴 유리 */}
+        <mesh>
+          <cylinderGeometry args={[0.2, 0.15, 0.48, 6]} />
+          <meshStandardMaterial color={lit ? '#FFE6B0' : '#9AA3B2'} emissive={lit ? '#FFB45A' : '#000'} emissiveIntensity={lit ? 0.9 : 0} transparent opacity={0.85} roughness={0.2} />
+        </mesh>
+        {/* 랜턴 틀 */}
+        {Array.from({ length: 6 }).map((_, i) => {
+          const a = (i / 6) * Math.PI * 2
+          return (
+            <mesh key={i} position={[Math.cos(a) * 0.18, 0, Math.sin(a) * 0.18]} rotation={[0, -a, 0]}>
+              <boxGeometry args={[0.025, 0.5, 0.025]} />
+              <meshStandardMaterial color={IRON} metalness={0.6} roughness={0.4} />
+            </mesh>
+          )
+        })}
+        <mesh>
+          <sphereGeometry args={[0.07, 12, 10]} />
+          <meshStandardMaterial color="#FFF4D8" emissive={lit ? '#FFD08A' : '#000'} emissiveIntensity={lit ? 5 : 0} />
+        </mesh>
+        <mesh position={[0, 0.34, 0]} castShadow>
+          <coneGeometry args={[0.3, 0.22, 6]} />
+          <meshStandardMaterial color={IRON} metalness={0.6} roughness={0.4} />
+        </mesh>
+        <mesh position={[0, 0.5, 0]}>
+          <sphereGeometry args={[0.05, 10, 8]} />
+          <meshStandardMaterial color="#B08D57" metalness={0.8} roughness={0.3} />
+        </mesh>
+      </group>
+      {lit && (
+        <>
+          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
+            <planeGeometry args={[5.5, 5.5]} />
+            <meshBasicMaterial map={glowMap()} transparent depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} />
+          </mesh>
+          <pointLight position={[0, 3.4, 0]} color="#FFC478" intensity={6} distance={9} decay={1.6} />
+        </>
+      )}
+    </group>
+  )
+}
+
+// 가로등 사이를 잇는 줄 전구: 살짝 처지게 늘어뜨리고 하나씩 반짝인다
+function StringLights({ points, lit }) {
+  const bulbs = useRef()
+  const { wires, spots } = useMemo(() => {
+    const wires = []
+    const spots = []
+    points.forEach((a, i) => {
+      const b = points[(i + 1) % points.length]
+      const curve = new THREE.QuadraticBezierCurve3(
+        new THREE.Vector3(a[0], 3.3, a[2]),
+        new THREE.Vector3((a[0] + b[0]) / 2, 2.35, (a[2] + b[2]) / 2),
+        new THREE.Vector3(b[0], 3.3, b[2]),
+      )
+      wires.push(new THREE.TubeGeometry(curve, 20, 0.012, 4, false))
+      for (let k = 1; k < 10; k++) spots.push(curve.getPoint(k / 10))
+    })
+    return { wires, spots }
+  }, [points])
+  useLayoutEffect(() => {
+    const m = new THREE.Matrix4()
+    const c = new THREE.Color()
+    spots.forEach((p, i) => {
+      bulbs.current.setMatrixAt(i, m.makeTranslation(p.x, p.y - 0.06, p.z))
+      bulbs.current.setColorAt(i, c.set(['#FFE3A8', '#FFC9A8', '#FFF1D0'][i % 3]))
+    })
+    bulbs.current.instanceMatrix.needsUpdate = true
+    bulbs.current.instanceColor.needsUpdate = true
+  }, [spots])
+  const mat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#FFC27A' }), [])
+  useFrame(({ clock }) => {
+    mat.emissiveIntensity = lit ? 2.4 + Math.sin(clock.elapsedTime * 1.6) * 0.5 : 0
+  })
+  return (
+    <group>
+      {wires.map((g, i) => (
+        <mesh key={i} geometry={g}>
+          <meshStandardMaterial color="#2E3138" />
+        </mesh>
+      ))}
+      <instancedMesh ref={bulbs} args={[null, mat, spots.length]}>
+        <sphereGeometry args={[0.06, 8, 6]} />
+      </instancedMesh>
     </group>
   )
 }
@@ -198,10 +299,8 @@ export default function PlazaScene({ progress, helper }) {
         <meshStandardMaterial color="#8DBF73" />
       </mesh>
       <Harmonia stopped={!restored} gateOpen showGate={false} origin={[0, 0, 0]} labelDistance={12} />
-      {Array.from({ length: 8 }).map((_, i) => {
-        const a = (i / 8) * Math.PI * 2 + Math.PI / 8
-        return <Lamp key={i} position={[Math.sin(a) * 12.4, 0, Math.cos(a) * 12.4]} lit={lit} />
-      })}
+      {LAMP_POS.map((pos, i) => <Lamp key={i} position={pos} lit={lit} />)}
+      <StringLights points={LAMP_POS} lit={lit} />
       {/* 악보대 */}
       <group position={SPOTS.stand}>
         <mesh position={[0, 0.6, 0]}><cylinderGeometry args={[0.05, 0.05, 1.2, 6]} /><meshStandardMaterial color="#3A3D45" /></mesh>

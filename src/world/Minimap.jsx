@@ -1,5 +1,5 @@
 import { forwardRef } from 'react'
-import { LAKE, PLACES, RIVER, ROADS, WORLD_HALF } from './layout.js'
+import { LAKE, ROUTE_PATHS, PLACES, RIVER, WORLD_HALF } from './layout.js'
 
 const SIZE = 180
 const toMap = (v) => ((v + WORLD_HALF) / (WORLD_HALF * 2)) * SIZE
@@ -9,7 +9,7 @@ const toMap = (v) => ((v + WORLD_HALF) / (WORLD_HALF * 2)) * SIZE
 const Minimap = forwardRef(function Minimap({ openIds, markers = [] }, carRef) {
   return (
     <svg className="minimap" viewBox={`0 0 ${SIZE} ${SIZE}`} role="img" aria-label="도로랜드 미니맵">
-      <rect width={SIZE} height={SIZE} rx="14" fill="#BFE2A8" />
+      <rect width={SIZE} height={SIZE} rx="14" fill="#5D795D" />
       <rect
         x={toMap(RIVER.x - RIVER.width / 2)}
         y={toMap(RIVER.z - RIVER.length / 2)}
@@ -18,18 +18,7 @@ const Minimap = forwardRef(function Minimap({ openIds, markers = [] }, carRef) {
         fill="#8FD0EC"
       />
       <circle cx={toMap(LAKE[0])} cy={toMap(LAKE[1])} r={toMap(LAKE[2]) - toMap(0)} fill="#8FD0EC" />
-      {ROADS.map(([a, b]) => (
-        <line
-          key={a + b}
-          x1={toMap(PLACES[a].pos[0])}
-          y1={toMap(PLACES[a].pos[2])}
-          x2={toMap(PLACES[b].pos[0])}
-          y2={toMap(PLACES[b].pos[2])}
-          stroke="#F1DDB5"
-          strokeWidth="3"
-          strokeLinecap="round"
-        />
-      ))}
+      {ROUTE_PATHS.map((path,i)=><polyline key={i} points={path.map(p=>toMap(p[0])+','+toMap(p[2])).join(' ')} stroke="#D5C6A3" strokeWidth="2" fill="none" strokeLinecap="round" />)}
       {Object.entries(PLACES).map(([id, p]) => {
         const open = openIds.includes(id)
         return (

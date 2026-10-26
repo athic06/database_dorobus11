@@ -1,5 +1,5 @@
-import { useMemo, useRef } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useEffect, useMemo, useRef } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
 import { Sparkles } from '@react-three/drei'
 import { Bloom, EffectComposer, ToneMapping, Vignette } from '@react-three/postprocessing'
 import { ToneMappingMode } from 'postprocessing'
@@ -7,14 +7,14 @@ import * as THREE from 'three'
 import { seeded } from './layout.js'
 
 /* ---------------- 하늘: 위는 짙고 지평선은 옅은 그라데이션 돔 ---------------- */
-export function SkyDome({ top = '#5FB2F2', horizon = '#D8EEFF', radius = 480 }) {
+export function SkyDome({ top = '#5594B4', horizon = '#DCE8E6', radius = 480 }) {
   const mat = useMemo(
     () =>
       new THREE.ShaderMaterial({
         side: THREE.BackSide,
         depthWrite: false,
         fog: false,
-        uniforms: { uTop: { value: new THREE.Color() }, uHorizon: { value: new THREE.Color() } },
+        uniforms: { uTop: { value: new THREE.Color() }, uHorizon: { value: new THREE.Color() }, uTime: { value: 0 } },
         vertexShader: `
           varying vec3 vDir;
           void main() {
@@ -25,21 +25,33 @@ export function SkyDome({ top = '#5FB2F2', horizon = '#D8EEFF', radius = 480 }) 
         fragmentShader: `
           uniform vec3 uTop;
           uniform vec3 uHorizon;
+          uniform float uTime;
+          float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
+          float noise(vec2 p) { vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y); }
           varying vec3 vDir;
           void main() {
-            float h = clamp(vDir.y, 0.0, 1.0);
-            gl_FragColor = vec4(mix(uHorizon, uTop, pow(h, 0.55)), 1.0);
+            vec3 dir = normalize(vDir);
+            float h = clamp(dir.y, 0.0, 1.0);
+            vec3 col = mix(uHorizon, uTop, pow(h, 0.62));
+            float sun = max(dot(dir, normalize(vec3(0.6, 1.0, 0.4))), 0.0);
+            col += vec3(1.0, 0.78, 0.49) * (pow(sun, 18.0) * 0.16 + pow(sun, 700.0) * 0.65);
+            vec2 uv = dir.xz / max(dir.y + 0.18, 0.08) * 3.0 + vec2(uTime * 0.003, 0.0);
+            float cloud = noise(uv) * 0.55 + noise(uv * 2.1) * 0.28 + noise(uv * 4.2) * 0.17;
+            float veil = smoothstep(0.58, 0.83, cloud) * smoothstep(0.08, 0.28, h) * 0.4;
+            col = mix(col, uHorizon * 1.12, veil);
+            gl_FragColor = vec4(col, 1.0);
             #include <tonemapping_fragment>
             #include <colorspace_fragment>
           }`,
       }),
     [],
   )
+  useEffect(() => () => mat.dispose(), [mat])
   mat.uniforms.uTop.value.set(top)
   mat.uniforms.uHorizon.value.set(horizon)
   const ref = useRef()
   // 돔이 카메라를 따라다녀 끝이 보이지 않게 한다
-  useFrame(({ camera }) => ref.current && ref.current.position.copy(camera.position))
+  useFrame(({ camera, clock }) => { if (ref.current) ref.current.position.copy(camera.position); mat.uniforms.uTime.value = clock.elapsedTime })
   return (
     <mesh ref={ref} material={mat} renderOrder={-1} frustumCulled={false}>
       <sphereGeometry args={[radius, 32, 16]} />
@@ -60,28 +72,29 @@ export function Clouds({ count = 16, span = 260, dim = false }) {
       puffs: Array.from({ length: 4 + Math.floor(rnd() * 3) }).map((_, i) => [i * 3.4 - 6 + rnd() * 1.5, rnd() * 1.8, (rnd() - 0.5) * 3, 2.6 + rnd() * 2.2]),
     }))
   }, [count, span])
-  const refs = useRef([])
+  // 구름 솜뭉치 전부를 그리기 호출 한 번으로 그린다 (매 프레임 위치만 옮긴다)
+  const puffs = useMemo(() => clouds.flatMap((c, ci) => c.puffs.map((p) => ({ ci, p }))), [clouds])
+  const ref = useRef()
+  const o = useMemo(() => new THREE.Object3D(), [])
   useFrame((_, dt) => {
-    clouds.forEach((c, i) => {
+    clouds.forEach((c) => {
       c.x += c.v * dt
       if (c.x > span + 40) c.x = -span - 40
-      const g = refs.current[i]
-      if (g) g.position.x = c.x
     })
+    puffs.forEach(({ ci, p: [x, y, z, r] }, i) => {
+      const c = clouds[ci]
+      o.position.set(c.x + x * c.s, c.y + y * c.s, c.z + z * c.s)
+      o.scale.set(r * c.s, r * c.s * 0.72, r * c.s)
+      o.updateMatrix()
+      ref.current.setMatrixAt(i, o.matrix)
+    })
+    ref.current.instanceMatrix.needsUpdate = true
   })
   return (
-    <group>
-      {clouds.map((c, i) => (
-        <group key={i} ref={(el) => (refs.current[i] = el)} position={[c.x, c.y, c.z]} scale={c.s}>
-          {c.puffs.map(([x, y, z, r], j) => (
-            <mesh key={j} position={[x, y, z]} scale={[1, 0.72, 1]}>
-              <icosahedronGeometry args={[r, 1]} />
-              <meshStandardMaterial color={dim ? '#D9DDE6' : '#FFFFFF'} emissive={dim ? '#7C8597' : '#DDEBFF'} emissiveIntensity={0.35} flatShading roughness={1} fog={false} />
-            </mesh>
-          ))}
-        </group>
-      ))}
-    </group>
+    <instancedMesh ref={ref} args={[null, null, puffs.length]} frustumCulled={false}>
+      <sphereGeometry args={[1, 16, 10]} />
+      <meshStandardMaterial color={dim ? '#D9DDE6' : '#FFFFFF'} emissive={dim ? '#7C8597' : '#DDEBFF'} emissiveIntensity={0.35} roughness={1} fog={false} />
+    </instancedMesh>
   )
 }
 
@@ -173,7 +186,6 @@ function Balloon({ colors, position, phase }) {
         <boxGeometry args={[1.5, 1, 1.5]} />
         <meshStandardMaterial color="#A0754A" />
       </mesh>
-      <pointLight position={[0, -4.8, 0]} color="#FFB35C" intensity={6} distance={6} />
     </group>
   )
 }
@@ -194,12 +206,35 @@ export function Glitter({ position, scale = [30, 12, 30], color = '#FFE08A', cou
 }
 
 /* ---------------- 후처리: 빛 번짐, 가장자리 어둡게, 톤 매핑 ---------------- */
-export function PostFX({ bloom = 0.6 }) {
+// 개발 서버 전용: 한 프레임의 그리기 호출 수와 삼각형 수를 window.__perf()로 본다
+function PerfProbe() {
+  const gl = useThree((st) => st.gl)
+  const scene = useThree((st) => st.scene)
+  const last = useRef({ calls: 0, triangles: 0 })
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+    gl.info.autoReset = false
+    window.__perf = () => ({ ...last.current, programs: gl.info.programs?.length, geometries: gl.info.memory.geometries })
+    window.__scene = scene
+    return () => { gl.info.autoReset = true; delete window.__perf }
+  }, [gl])
+  useFrame(() => {
+    if (!import.meta.env.DEV) return
+    last.current = { calls: gl.info.render.calls, triangles: gl.info.render.triangles }
+    gl.info.reset()
+  }, -1)
+  return null
+}
+
+export function PostFX({ bloom = 0.6, lite = false }) {
   return (
-    <EffectComposer multisampling={4} disableNormalPass>
-      <Bloom mipmapBlur intensity={bloom} luminanceThreshold={0.95} luminanceSmoothing={0.2} radius={0.7} />
-      <Vignette offset={0.32} darkness={0.42} />
+    <>
+    {import.meta.env.DEV && <PerfProbe />}
+    <EffectComposer multisampling={lite ? 0 : 2} disableNormalPass>
+      {!lite && <Bloom mipmapBlur intensity={bloom} luminanceThreshold={0.95} luminanceSmoothing={0.2} radius={0.7} />}
+      <Vignette offset={0.25} darkness={0.22} />
       <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
     </EffectComposer>
+    </>
   )
 }

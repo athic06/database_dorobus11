@@ -1,7 +1,7 @@
 // A · 랜덤 고장 · 업무 이벤트: 날짜와 계정으로 정해지는 "오늘 고장 난 시설" 2곳.
 export const BREAKABLE = {
   carousel: { name: '회전목마', fault: '말을 돌리는 모터가 멈췄어요', pos: [-34, 0, 57] },
-  ferris: { name: '관람차', fault: '태양광 패널 연결이 끊겼어요', pos: [-43, 0, -6] },
+  ferris: { name: '관람차', fault: '태양광 패널 연결이 끊겼어요', pos: [-34, 0, -6] }, // 관람차 언덕 계단 아래
   coaster: { name: '롤러코스터', fault: '속도를 재는 가속도 센서가 고장 났어요', pos: [34, 0, -6] },
   sign: { name: '대형 전광판', fault: '도트 매트릭스 일부가 꺼졌어요', pos: [18.5, 0, 38] },
   harmonia: { name: '광장 조명', fault: '조명 제어 규칙이 지워졌어요', pos: [0, 0, 20] },

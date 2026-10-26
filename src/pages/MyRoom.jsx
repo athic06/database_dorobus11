@@ -1,3 +1,4 @@
+import { useSceneEntry, sceneShot, EntryCamera, EntryOverlay } from '../world/SceneEntry.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -130,7 +131,7 @@ export default function MyRoom() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const interact = (id) => {
+  const executeInteraction = (id) => {
     if (id === 'portal') navigate('/store')
     if (id === 'desk') {
       posRef.current.set(...CHAIR_POS)
@@ -153,7 +154,17 @@ export default function MyRoom() {
     }
   }
 
-  const busy = !!dialog || !!panel
+  const entry = useSceneEntry(!!dialog || !!panel)
+  // 카메라 연출은 다른 공간에 들어갈 때만 (상점, 도로랜드). 나머지는 바로 실행한다.
+  const interact = (id) => {
+    if (entry.active) return
+    const leaves = id === 'portal' || (id === 'door' && progress.classDone && progress.carCheckDone && !needLicense)
+    if (!leaves) return executeInteraction(id)
+    const pos = { portal: PORTAL_POS, door: DOOR_POS, car: CAR_POS, license: LICENSE_POS, sofa: SOFA_POS, desk: DESK_POS }[id] || posRef.current.toArray()
+    const offset = id === 'desk' ? [4, 2.6, 2] : id === 'portal' ? [-4, 3, 4] : [3, 3, 5]
+    entry.enter(sceneShot(pos, PROMPTS[id] || '마이룸', offset, id === 'car' ? 0.9 : 1.5), () => executeInteraction(id))
+  }
+  const busy = entry.active || !!dialog || !!panel
   const keys = useKeyboard((code) => {
     if (code === 'KeyE' && !busy && nearRef.current) interact(nearRef.current)
   })
@@ -184,7 +195,7 @@ export default function MyRoom() {
           shadow-camera-top={14}
           shadow-camera-bottom={-14}
         />
-        <ViewControls view={view} />
+        {!entry.active && <ViewControls view={view} />}
         <Room />
         <Door locked={!progress.classDone} />
         <PianoSofa position={SOFA_POS} rotation={[0, Math.PI / 4, 0]} />
@@ -192,7 +203,7 @@ export default function MyRoom() {
         <OwnedFurniture owned={owned} />
         {carVisible && <Car checked={progress.carCheckDone} />}
         {needLicense && <License name={user.name} />}
-        <Portal active={near === 'portal'} onClick={() => (near === 'portal' ? navigate('/store') : null)} />
+        <Portal active={near === 'portal'} onClick={() => (near === 'portal' && !busy ? interact('portal') : null)} />
         <Robot
           posRef={posRef}
           targetRef={targetRef}
@@ -202,11 +213,14 @@ export default function MyRoom() {
           bubble={bubble}
           onMove={onMove}
           frozen={busy}
+          cameraControlled={entry.active}
           seated={panel === 'computer'}
           face={panel === 'computer' ? -Math.PI / 2 : null}
         />
         <PostFX bloom={0.5} />
+        <EntryCamera entry={entry} />
       </Canvas>
+      <EntryOverlay entry={entry} />
 
       <RoomHud title={`${user.name}의 마이룸`} onChat={setBubble} />
 

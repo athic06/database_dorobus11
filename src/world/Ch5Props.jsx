@@ -27,7 +27,6 @@ export function PartBeacon({ color = '#F5B841', glow = '#F08A3E' }) {
         <torusGeometry args={[0.45, 0.14, 8, 8]} />
         <meshStandardMaterial color={color} emissive={glow} emissiveIntensity={1.4} toneMapped={false} />
       </mesh>
-      <pointLight color={glow} intensity={6} distance={8} />
     </group>
   )
 }
@@ -63,7 +62,7 @@ export function FaultMarker({ position, name }) {
   const puffs = useRef([])
   useFrame((s) => {
     const t = s.clock.elapsedTime
-    if (light.current) light.current.intensity = Math.sin(t * 6) > 0 ? 12 : 2
+    if (light.current) light.current.material.emissiveIntensity = Math.sin(t * 6) > 0 ? 3 : 0.4
     puffs.current.forEach((p, i) => {
       if (!p) return
       const k = (t * 0.4 + i / 4) % 1
@@ -80,7 +79,10 @@ export function FaultMarker({ position, name }) {
           <meshStandardMaterial color="#6B6F78" transparent opacity={0.5} depthWrite={false} />
         </mesh>
       ))}
-      <pointLight ref={light} position={[0, 3, 0]} color="#FF3B3B" distance={12} />
+      <mesh ref={light} position={[0, 3, 0]}>
+        <sphereGeometry args={[0.35, 12, 10]} />
+        <meshStandardMaterial color="#FF6B6B" emissive="#FF3B3B" emissiveIntensity={2} toneMapped={false} />
+      </mesh>
       <Html position={[0, 8.2, 0]} center zIndexRange={[1, 0]} distanceFactor={40}>
         <div className="world-label fault">⚠ {name} 고장</div>
       </Html>

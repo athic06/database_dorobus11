@@ -7,11 +7,20 @@ import { PLACES, VAULT } from './layout.js'
 const at = (id) => PLACES[id].pos
 
 export function Label({ y, children, locked, distance = 40 }) {
-  return (
-    <Html position={[0, y, 0]} center zIndexRange={[1, 0]} distanceFactor={distance}>
-      <div className={`world-label${locked ? ' locked' : ''}`}>{children}</div>
-    </Html>
-  )
+  const anchor=useRef(), element=useRef(), world=useMemo(()=>new THREE.Vector3(),[])
+  useFrame(({camera})=>{
+    if(!anchor.current||!element.current)return
+    anchor.current.getWorldPosition(world)
+    const d=camera.position.distanceTo(world)
+    const o=Math.round((1-THREE.MathUtils.smoothstep(d,42,62))*20)/20
+    if(element.current.dataset.o===String(o))return
+    element.current.dataset.o=String(o)
+    element.current.style.opacity=String(o)
+    element.current.style.visibility=o>0?'visible':'hidden'
+  })
+  return <group ref={anchor} position={[0,y,0]}><Html center zIndexRange={[1,0]} distanceFactor={distance}>
+    <div ref={element} className={`world-label${locked?' locked':''}`}>{children}</div>
+  </Html></group>
 }
 
 /* ---------------- 하모니아: 도로랜드 중심에서 음악을 에너지로 바꾸는 거대한 악기 ---------------- */
@@ -58,7 +67,7 @@ export function Harmonia({ stopped, gateOpen = false, showGate = true, labelDist
           </mesh>
         )
       })}
-      <mesh position={[0, 1.1, 15.5]}>
+      <mesh position={[0, 1.1, 0]} rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[15.5, 0.08, 6, 80]} />
         <meshStandardMaterial color="#8B6A4A" />
       </mesh>
@@ -141,171 +150,7 @@ export function Harmonia({ stopped, gateOpen = false, showGate = true, labelDist
   )
 }
 
-/* ---------------- 관람차: 돌면서 태양광을 모아 숲에 빛과 물을 준다 ---------------- */
-export function FerrisWheel({ stopped }) {
-  const wheel = useRef()
-  const cabins = useRef([])
-  useFrame((_, dt) => {
-    if (stopped) return
-    wheel.current.rotation.z += dt * 0.15
-    cabins.current.forEach((cb) => cb && (cb.rotation.z = -wheel.current.rotation.z))
-  })
-  const N = 10
-  const colors = ['#E2574C', '#4E8BFF', '#F5B841', '#4CAF6E', '#9B6BD6']
-  return (
-    <group position={at('ferris')} rotation={[0, Math.PI / 2, 0]}>
-      {[-1, 1].map((s) => (
-        <group key={s}>
-          <mesh position={[3.5, 5.5, s * 1.4]} rotation={[0, 0, 0.32]} castShadow>
-            <cylinderGeometry args={[0.25, 0.35, 12, 8]} />
-            <meshStandardMaterial color="#D8DCE4" />
-          </mesh>
-          <mesh position={[-3.5, 5.5, s * 1.4]} rotation={[0, 0, -0.32]} castShadow>
-            <cylinderGeometry args={[0.25, 0.35, 12, 8]} />
-            <meshStandardMaterial color="#D8DCE4" />
-          </mesh>
-        </group>
-      ))}
-      <group ref={wheel} position={[0, 11, 0]}>
-        {[-0.9, 0.9].map((z) => (
-          <mesh key={z} position={[0, 0, z]}>
-            <torusGeometry args={[8, 0.18, 8, 64]} />
-            <meshStandardMaterial color="#F2F4F8" />
-          </mesh>
-        ))}
-        {Array.from({ length: N }).map((_, i) => {
-          const a = (i / N) * Math.PI * 2
-          return (
-            <group key={i}>
-              <mesh rotation={[0, 0, a]} position={[Math.cos(a) * 4, Math.sin(a) * 4, 0]}>
-                <boxGeometry args={[8, 0.12, 0.12]} />
-                <meshStandardMaterial color="#C8CFDA" />
-              </mesh>
-              <group position={[Math.cos(a) * 8, Math.sin(a) * 8, 0]} ref={(el) => (cabins.current[i] = el)}>
-                <mesh position={[0, -1, 0]} castShadow>
-                  <boxGeometry args={[1.3, 1.3, 1.3]} />
-                  <meshStandardMaterial color={colors[i % colors.length]} />
-                </mesh>
-                <mesh position={[0, -0.28, 0]}>
-                  <boxGeometry args={[1.4, 0.06, 1.4]} />
-                  <meshStandardMaterial color="#24418C" metalness={0.5} roughness={0.3} />
-                </mesh>
-              </group>
-            </group>
-          )
-        })}
-        <mesh rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.6, 0.6, 2.4, 16]} />
-          <meshStandardMaterial color="#F5B841" />
-        </mesh>
-      </group>
-      <Label y={21}>관람차 · 태양광 발전</Label>
-    </group>
-  )
-}
-
-/* ---------------- 롤러코스터: 움직이는 힘으로 강물을 맑게 정화 ---------------- */
-export function RollerCoaster({ stopped }) {
-  const cart = useRef()
-  const curve = useMemo(() => {
-    const pts = [
-      [-10, 3, 0], [-6, 9, -7], [2, 13, -9], [9, 6, -6], [12, 3, 0], [9, 8, 7], [2, 11, 9], [-5, 5, 8], [-11, 6, 4],
-    ].map(([x, y, z]) => new THREE.Vector3(x, y, z))
-    return new THREE.CatmullRomCurve3(pts, true, 'catmullrom', 0.4)
-  }, [])
-  const supports = useMemo(() => Array.from({ length: 14 }, (_, i) => curve.getPointAt(i / 14)), [curve])
-  const t = useRef(0)
-  const tmp = useMemo(() => new THREE.Vector3(), [])
-  useFrame((_, dt) => {
-    if (stopped) return
-    t.current = (t.current + dt * 0.06) % 1
-    const p = curve.getPointAt(t.current)
-    curve.getPointAt((t.current + 0.01) % 1, tmp)
-    cart.current.position.copy(p).setY(p.y + 0.6)
-    cart.current.lookAt(tmp.x, tmp.y + 0.6, tmp.z)
-  })
-  return (
-    <group position={at('coaster')}>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]}>
-        <circleGeometry args={[9, 40]} />
-        <meshStandardMaterial color="#7FC8E8" emissive="#3FA9D6" emissiveIntensity={0.15} />
-      </mesh>
-      <mesh>
-        <tubeGeometry args={[curve, 200, 0.28, 8, true]} />
-        <meshStandardMaterial color="#E2574C" />
-      </mesh>
-      {supports.map((p, i) => (
-        <mesh key={i} position={[p.x, p.y / 2, p.z]}>
-          <cylinderGeometry args={[0.12, 0.12, p.y, 6]} />
-          <meshStandardMaterial color="#D8DCE4" />
-        </mesh>
-      ))}
-      <group ref={cart}>
-        <mesh castShadow>
-          <boxGeometry args={[1.2, 0.8, 2]} />
-          <meshStandardMaterial color="#F5B841" />
-        </mesh>
-      </group>
-      <Label y={17}>롤러코스터 · 강물 정화</Label>
-    </group>
-  )
-}
-
-/* ---------------- 회전목마 ---------------- */
-export function Carousel({ stopped, locked = true }) {
-  const spin = useRef()
-  const horses = useRef([])
-  useFrame((s, dt) => {
-    if (stopped) return
-    spin.current.rotation.y += dt * 0.5
-    horses.current.forEach((h, i) => h && (h.position.y = 1.4 + Math.sin(s.clock.elapsedTime * 2 + i) * 0.35))
-  })
-  const colors = ['#FFFFFF', '#F7D9B8', '#E7C6F5', '#C9E8FF']
-  return (
-    <group position={at('carousel')}>
-      <mesh position={[0, 0.3, 0]} receiveShadow>
-        <cylinderGeometry args={[6, 6.2, 0.6, 32]} />
-        <meshStandardMaterial color="#C99A6B" />
-      </mesh>
-      <mesh position={[0, 3.3, 0]}>
-        <cylinderGeometry args={[0.6, 0.6, 6, 16]} />
-        <meshStandardMaterial color="#F5C451" metalness={0.4} />
-      </mesh>
-      <mesh position={[0, 7.2, 0]} castShadow>
-        <coneGeometry args={[7, 2.6, 16]} />
-        <meshStandardMaterial color="#E57E9A" />
-      </mesh>
-      <mesh position={[0, 6, 0]}>
-        <cylinderGeometry args={[6.6, 6.6, 0.8, 16]} />
-        <meshStandardMaterial color="#F7C1CF" />
-      </mesh>
-      <group ref={spin}>
-        {Array.from({ length: 8 }).map((_, i) => {
-          const a = (i / 8) * Math.PI * 2
-          return (
-            <group key={i} position={[Math.cos(a) * 4.5, 0, Math.sin(a) * 4.5]} rotation={[0, -a, 0]}>
-              <mesh position={[0, 3.3, 0]}>
-                <cylinderGeometry args={[0.06, 0.06, 5.4, 6]} />
-                <meshStandardMaterial color="#F5C451" metalness={0.5} />
-              </mesh>
-              <group ref={(el) => (horses.current[i] = el)} position={[0, 1.4, 0]}>
-                <mesh castShadow>
-                  <capsuleGeometry args={[0.35, 0.9, 4, 8]} />
-                  <meshStandardMaterial color={colors[i % colors.length]} />
-                </mesh>
-                <mesh position={[0, 0.55, 0.55]} rotation={[0.6, 0, 0]}>
-                  <capsuleGeometry args={[0.2, 0.45, 4, 8]} />
-                  <meshStandardMaterial color={colors[i % colors.length]} />
-                </mesh>
-              </group>
-            </group>
-          )
-        })}
-      </group>
-      <Label y={10} locked={locked}>회전목마</Label>
-    </group>
-  )
-}
+export { FerrisWheel, RollerCoaster, Carousel } from './Rides.jsx'
 
 /* ---------------- 회전목마 옆 오래된 구조물 (챕터 3 큐브) ---------------- */
 export function CubeVault({ open, cubes }) {
@@ -341,7 +186,6 @@ export function CubeVault({ open, cubes }) {
         <boxGeometry args={[2.4, 2.8, 0.5]} />
         <meshStandardMaterial color="#6B5D50" flatShading />
       </mesh>
-      {open && <pointLight position={[0, 1.6, -0.4]} color="#7FE3FF" intensity={cubes ? 10 : 3} distance={6} />}
       {open && cubes && (
         <group ref={cubeGroup} position={[0, 0, -0.6]}>
           {[-0.7, 0, 0.7].map((x) => (
@@ -485,7 +329,6 @@ export function Shop({ state = 'closed' }) {
           <meshStandardMaterial color="#F5C451" />
         </mesh>
       )}
-      {state === 'open' && <pointLight position={[0, 2.5, 1.5]} color="#FFC94D" intensity={8} distance={10} />}
       <Label y={7} locked={state === 'closed'}>{label}</Label>
     </group>
   )
@@ -678,7 +521,6 @@ export function CaveMountain({ open }) {
         <torusGeometry args={[0.45, 0.08, 6, 3]} />
         <meshStandardMaterial color="#B98CFF" emissive="#8A4DFF" emissiveIntensity={1} toneMapped={false} />
       </mesh>
-      <pointLight position={[0, 3, 1]} color="#8A4DFF" intensity={8} distance={10} />
       <Label y={9} locked={!open}>{open ? '동굴 · 입장 가능' : '동굴'}</Label>
     </group>
   )

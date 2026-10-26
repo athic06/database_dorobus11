@@ -1,8 +1,11 @@
+import { useSceneEntry, sceneShot, EntryCamera, EntryOverlay } from '../world/SceneEntry.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
+import { PerformanceMonitor, Preload } from '@react-three/drei'
 import { useLocation, useNavigate } from 'react-router-dom'
 import * as THREE from 'three'
 import ViewControls from '../myroom/ViewControls.jsx'
+import Robot from '../myroom/Robot.jsx'
 import Driver from '../world/Driver.jsx'
 import Minimap, { toMap } from '../world/Minimap.jsx'
 import { Xylo, Naty, CodexSilhouette, Person } from '../world/Characters.jsx'
@@ -12,7 +15,7 @@ import {
 import Terrain from '../world/Terrain.jsx'
 import { Outskirts } from '../world/Scenery.jsx'
 import { Balloons, Birds, Clouds, Glitter, PostFX, SkyDome } from '../world/Atmosphere.jsx'
-import { ALL_COLLIDERS, PLACES, ROADS, VAULT, WORLD_HALF } from '../world/layout.js'
+import { ALL_COLLIDERS, ALL_ROAD_SEGMENTS, PLACES, ROADS, VAULT, WALK_COLLIDERS, WORLD_HALF, walkBlocked, walkHeight } from '../world/layout.js'
 import ShopRestockMission from '../missions/ShopRestockMission.jsx'
 import SignMission from '../missions/SignMission.jsx'
 import { PART_MISSIONS } from '../missions/PartMissions.jsx'
@@ -36,7 +39,7 @@ import { useProximity } from '../game/useProximity.js'
 import { FACILITY_GOAL, VOID_PARTS, harmoniaStopped, rikoMissing, storyDone } from '../game/progress.js'
 import { useStore } from '../store.jsx'
 
-const ROAD_SEGMENTS = ROADS.map(([a, b]) => [PLACES[a].pos, PLACES[b].pos])
+const ROAD_SEGMENTS = ALL_ROAD_SEGMENTS
 const XYLO_POS = [7, 0, 52]
 const NATY_POS = [-6, 3, 24]
 const CODEX_POS = [-26.5, 0, 51.5] // 회전목마 오른편, 안내판 정리 지점에서 정면
@@ -89,7 +92,7 @@ const SPOTS = [
   { id: 'carousel', pos: [-34, 0, 57], radius: 5.5 },
   { id: 'vault', pos: VAULT.front, radius: 3 },
   { id: 'lab', pos: [42, 0, 42], radius: 5 },
-  { id: 'ferris', pos: [-43, 0, -6], radius: 5 },
+  { id: 'ferris', pos: [-34, 0, -6], radius: 5 }, // 언덕 계단 아래 입구
   { id: 'coaster', pos: [34, 0, -6], radius: 5 },
   { id: 'safari', pos: [-52, 0, -34], radius: 6 },
   { id: 'storage', pos: [-74, 0, 19], radius: 5 },
@@ -189,7 +192,15 @@ export default function World() {
   const spawn = p.rescueLessonDone && !p.rikoBack ? SPAWNS.carousel : SPAWNS[location.state?.from] || SPAWNS.myroom
   const posRef = useRef(new THREE.Vector3(spawn[0], 0, spawn[1]))
   const headingRef = useRef(spawn[2])
-  const view = useRef({ yaw: 0, pitch: 0.5, dist: 14 })
+  const view = useRef({ yaw: 0, pitch: 0.32, dist: 11 })
+  // F: 차에서 내려 걸어 다니기 (계단이 있는 관람차 언덕은 걸어서만 오른다)
+  const [onFoot, setOnFoot] = useState(false)
+  const walkRef = useRef(new THREE.Vector3())
+  const walkTarget = useRef(null)
+  const walkHeading = useRef(0)
+  const [nearCar, setNearCar] = useState(false)
+  // 프레임이 계속 떨어지는 컴퓨터에서는 해상도를 낮추고 빛 번짐 효과를 끈다
+  const [lowGfx, setLowGfx] = useState(false)
   const carMark = useRef()
   const [dialog, setDialog] = useState(null)
   const [mission, setMission] = useState(null)
@@ -223,6 +234,41 @@ export default function World() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [near])
   const colliders = [...ALL_COLLIDERS, ...partIds.map((id) => [PART_SPOTS[id].pos[0], PART_SPOTS[id].pos[2], 1])]
+  const walkColliders = [...WALK_COLLIDERS, ...partIds.map((id) => [PART_SPOTS[id].pos[0], PART_SPOTS[id].pos[2], 1]), [posRef.current.x, posRef.current.z, 1.6]]
+  const WALK_LIM = WORLD_HALF - 3
+  const walkBounds = { minX: -WALK_LIM, maxX: WALK_LIM, minZ: -WALK_LIM, maxZ: WALK_LIM }
+
+  // 차 옆(오른쪽 → 왼쪽 → 뒤 순서)에서 비어 있는 자리에 내린다
+  const exitCar = () => {
+    const h = headingRef.current
+    const c = posRef.current
+    const sides = [[Math.cos(h), -Math.sin(h)], [-Math.cos(h), Math.sin(h)], [-Math.sin(h), -Math.cos(h)]]
+    const free = (x, z) => !walkBlocked(x, z) && !WALK_COLLIDERS.some(([cx, cz, r]) => Math.hypot(x - cx, z - cz) < r + 0.5)
+    const [dx, dz] = sides.find(([dx, dz]) => free(c.x + dx * 2.8, c.z + dz * 2.8)) || sides[0]
+    walkRef.current.set(c.x + dx * 2.8, 0, c.z + dz * 2.8)
+    walkTarget.current = null
+    walkHeading.current = h
+    // 시점: 자동차는 차 방향 기준 각도, 걷기는 절대 각도라 바꿔 준다
+    view.current.yaw = h + Math.PI + view.current.yaw
+    view.current.dist = Math.min(view.current.dist, 9)
+    setNearCar(true)
+    setOnFoot(true)
+  }
+  const enterCar = () => {
+    let yaw = view.current.yaw - headingRef.current - Math.PI
+    yaw = Math.atan2(Math.sin(yaw), Math.cos(yaw))
+    view.current.yaw = yaw
+    setOnFoot(false)
+  }
+  const onWalk = (pos) => {
+    // 미니맵 화살표 방향: 움직인 방향
+    const prev = walkRef.prev || (walkRef.prev = pos.clone())
+    if (pos.distanceToSquared(prev) > 0.0004) walkHeading.current = Math.atan2(pos.x - prev.x, pos.z - prev.z)
+    prev.copy(pos)
+    onMove(pos, walkHeading.current)
+    const close = Math.hypot(pos.x - posRef.current.x, pos.z - posRef.current.z) < 4
+    if (close !== nearCar) setNearCar(close)
+  }
 
   // 자동차 점검(챕터 1)을 마치기 전에는 월드로 나올 수 없다
   useEffect(() => {
@@ -337,7 +383,7 @@ export default function World() {
     ...SCENIC_LINES,
   }
 
-  const interact = (id) => {
+  const executeInteraction = (id) => {
     if (faults.includes(id)) return setMission(`fix-${id}`)
     if (id === 'myroom') return navigate('/myroom')
     if (id === 'cave' && caveOpen) return navigate('/cave')
@@ -372,9 +418,23 @@ export default function World() {
     say(LINES[id]())
   }
 
-  const busy = !!dialog || !!mission || !!cleared || asking || chat || showLicense || showPark || !!routinePanel
+  const entry = useSceneEntry(!!dialog || !!mission || !!cleared || asking || chat || showLicense || showPark || !!routinePanel)
+  // 카메라 연출은 다른 공간에 들어갈 때만 (마이룸, 하모니아 광장, 동굴). 나머지는 바로 실행한다.
+  const entersSpace = (id) => !faults.includes(id) && (id === 'myroom' || (id === 'harmonia' && p.plazaOpen) || (id === 'cave' && caveOpen))
+  const interact = (id) => {
+    if (entry.active) return
+    if (!entersSpace(id)) return executeInteraction(id)
+    const pos = id === 'task' ? task?.pos : id.startsWith('part-') ? PART_SPOTS[id.slice(5)]?.pos : id === 'vault' ? VAULT.pos : PLACES[id]?.pos || SPOTS.find(s => s.id === id)?.pos || posRef.current.toArray()
+    const composition = { ferris: [[20, 12, 3], 13], coaster: [[-24, 12, 9], 7], carousel: [[10, 7, 18], 3.5], harmonia: [[8, 7, 27], 7], cave: [[4, 4, 14], 3], vault: [[5, 4, 8], 2], lab: [[10, 6, 14], 3] }[id]
+    entry.enter(sceneShot(pos, PROMPTS[id] || '도로랜드', ...(composition || [])), () => executeInteraction(id))
+  }
+  const busy = entry.active || !!dialog || !!mission || !!cleared || asking || chat || showLicense || showPark || !!routinePanel
   const keys = useKeyboard((code) => {
     if (code === 'KeyE' && !busy && nearRef.current) interact(nearRef.current)
+    if (code === 'KeyF' && !busy) {
+      if (!onFoot) exitCar()
+      else if (nearCar) enterCar()
+    }
   })
 
   const onMove = (pos, h) => {
@@ -425,18 +485,21 @@ export default function World() {
   ]
   const promptFor = (id) => (faults.includes(id) ? `${BREAKABLE[id].name} 고장 수리하기` : PROMPTS[id])
   const dusk = p.signsDone && !p.letterSeen
-  const sky = stopped ? '#C7CEDB' : dusk ? '#F6D3B0' : '#D8EEFF'
-  const skyTop = stopped ? '#8E99AE' : dusk ? '#E58A6A' : '#5FB2F2'
+  const sky = stopped ? '#C7CEDB' : dusk ? '#F6D3B0' : '#DCE8E6'
+  const skyTop = stopped ? '#8E99AE' : dusk ? '#E58A6A' : '#5594B4'
 
   return (
     <div className="room-page world">
-      <Canvas shadows="soft" camera={{ position: [spawn[0], 8, spawn[1] - Math.cos(spawn[2]) * 12], fov: 55, far: 700 }} dpr={[1, 1.75]}>
+      <Canvas shadows camera={{ position: [spawn[0], 8, spawn[1] - Math.cos(spawn[2]) * 12], fov: 55, far: 340 }} dpr={lowGfx ? 1 : [1, 1.25]}>
+        {/* 화면 밖 물체까지 처음에 셰이더를 미리 만들어 둔다. 달리다가 새 물체가 보일 때 멈칫하지 않게. */}
+        <Preload all />
+        <PerformanceMonitor onDecline={() => setLowGfx(true)} flipflops={2} />
         <color attach="background" args={[sky]} />
-        <fog attach="fog" args={[sky, 110, 330]} />
+        <fog attach="fog" args={[sky, 55, 260]} />
         <SkyDome top={skyTop} horizon={sky} />
-        <hemisphereLight args={[stopped ? '#D6DCE8' : dusk ? '#FFE2C4' : '#DDF0FF', '#7DB767', 0.8]} />
-        <ambientLight intensity={stopped ? 0.35 : 0.5} />
-        <ViewControls view={view} />
+        <hemisphereLight args={[stopped ? '#D6DCE8' : dusk ? '#FFE2C4' : '#DDF0FF', '#38503D', 0.85]} />
+        <ambientLight intensity={stopped ? 0.35 : 0.32} />
+        {!entry.active && <ViewControls view={view} />}
         <Terrain roads={ROAD_SEGMENTS} half={WORLD_HALF} night={stopped || dusk} />
         <Outskirts />
         <Clouds dim={stopped} />
@@ -476,11 +539,33 @@ export default function World() {
           colliders={colliders}
           half={WORLD_HALF}
           frozen={busy}
+          cameraControlled={entry.active}
           onMove={onMove}
           vehicle={currentVehicle(p)}
+          parked={onFoot}
+          followRef={walkRef}
         />
-        <PostFX bloom={stopped ? 0.35 : 0.6} />
+        {onFoot && (
+          <Robot
+            posRef={walkRef}
+            targetRef={walkTarget}
+            keys={keys}
+            view={view}
+            name={user.name}
+            onMove={onWalk}
+            bounds={walkBounds}
+            colliders={walkColliders}
+            frozen={busy}
+            cameraControlled={entry.active}
+            heightAt={walkHeight}
+            blocked={walkBlocked}
+            speed={6.5}
+          />
+        )}
+        <PostFX bloom={stopped ? 0.18 : 0.28} lite={lowGfx} />
+        <EntryCamera entry={entry} />
       </Canvas>
+      <EntryOverlay entry={entry} />
 
       <div className="hud hud-top">
         <button className="back" onClick={() => navigate('/myroom')}>← 마이룸</button>
@@ -522,7 +607,14 @@ export default function World() {
           }}
         />
       )}
-      <div className="hud hint">W/S 앞·뒤 · A/D 방향 · 마우스 드래그로 둘러보기 · 휠 확대/축소 · E 상호작용</div>
+      <div className="hud hint">
+        {onFoot
+          ? 'WASD 이동 · Space 점프 · 마우스 드래그로 둘러보기 · 휠 확대/축소 · E 상호작용 · 차 옆에서 F 타기'
+          : 'W/S 앞·뒤 · A/D 방향 · 마우스 드래그로 둘러보기 · 휠 확대/축소 · E 상호작용 · F 내려서 걷기'}
+      </div>
+      {onFoot && nearCar && !near && !busy && (
+        <button className="hud prompt" onClick={enterCar}>F · 차에 타기</button>
+      )}
       {near && !busy && (
         <button className="hud prompt" onClick={() => interact(near)}>E · {promptFor(near)}</button>
       )}

@@ -35,15 +35,20 @@ function lerpAngle(a, b, t) {
 
 // frozen: 대사·미션 창이 떠 있는 동안 움직이지 않게 한다.
 // seated: 의자에 앉은 자세(몸을 낮춤), face: 바라볼 방향(라디안, 앉아 있을 때 책상 쪽)
-export default function Robot({ posRef, targetRef, keys, view, name, bubble, onMove, bounds = ROOM_BOUNDS, colliders = [], frozen = false, seated = false, face = null }) {
+// heightAt(x, z): 발밑 높이(계단, 언덕), blocked(x, z): 걸어서 못 들어가는 곳, speed: 걷는 속도
+export default function Robot({ posRef, targetRef, keys, view, name, bubble, onMove, bounds = ROOM_BOUNDS, colliders = [], frozen = false, cameraControlled = false, seated = false, face = null, heightAt = null, blocked = null, speed = SPEED }) {
   const group = useRef()
   const body = useRef()
+  const legs = [useRef(), useRef()]
+  const arms = [useRef(), useRef()]
+  const stride = useRef(0) // 걸음 위상: 움직인 거리만큼 앞으로 간다
+  const ground = useRef(heightAt ? heightAt(posRef.current.x, posRef.current.z) : 0)
   const { camera } = useThree()
 
   // 개발 서버에서만: 콘솔에서 window.__robot.teleport(x, z)로 위치 이동 (배포 빌드에는 없음)
   useEffect(() => {
     if (!import.meta.env.DEV) return
-    window.__robot = { teleport: (x, z) => posRef.current.set(x, 0, z) }
+    window.__robot = { teleport: (x, z) => posRef.current.set(x, 0, z), where: () => [...posRef.current.toArray(), ground.current] }
     return () => delete window.__robot
   }, [posRef])
 
@@ -86,8 +91,10 @@ export default function Robot({ posRef, targetRef, keys, view, name, bubble, onM
     if (moving) {
       move.normalize()
       group.current.rotation.y = lerpAngle(group.current.rotation.y, Math.atan2(move.x, move.z), 1 - Math.pow(0.0001, dt))
-      posRef.current.addScaledVector(move, SPEED * Math.min(dt, 0.1))
       const p = posRef.current
+      const px = p.x
+      const pz = p.z
+      p.addScaledVector(move, speed * Math.min(dt, 0.1))
       if (bounds.radius) {
         // 원형 공간(광장)
         const d = Math.hypot(p.x, p.z)
@@ -106,19 +113,49 @@ export default function Robot({ posRef, targetRef, keys, view, name, bubble, onM
           p.z = cz + (dz / d) * r
         }
       }
+      // 막힌 곳(언덕 비탈 등): 한 축씩 되돌려 벽을 따라 미끄러지게 한다
+      if (blocked?.(p.x, p.z)) {
+        const nx = p.x
+        p.x = px
+        if (blocked(p.x, p.z)) {
+          p.x = nx
+          p.z = pz
+          if (blocked(p.x, p.z)) p.x = px
+        }
+      }
+      stride.current += speed * Math.min(dt, 0.1) * 2.4
     }
+    // 계단을 오르내릴 때 한 칸씩 툭 끊기지 않게 부드럽게 따라간다
+    const g = heightAt ? heightAt(posRef.current.x, posRef.current.z) : 0
+    ground.current += (g - ground.current) * Math.min(1, dt * 14)
     group.current.position.copy(posRef.current)
     if (face !== null) group.current.rotation.y = lerpAngle(group.current.rotation.y, face, 1 - Math.pow(0.001, dt))
-    group.current.position.y = (seated ? 0.45 : 0) + j.y
+    group.current.position.y = ground.current + (seated ? 0.45 : 0) + j.y
     const t = state.clock.elapsedTime
-    body.current.position.y = j.y ? 0 : moving ? Math.abs(Math.sin(t * 12)) * 0.08 : Math.sin(t * 2) * 0.02
+    // 걷기: 다리는 앞뒤로 엇갈리고 팔은 반대로 흔든다. 공중에서는 다리를 살짝 접는다.
+    const walking = moving && !j.y && !seated
+    const ph = stride.current
+    const swing = walking ? Math.sin(ph) * 0.65 : 0
+    const ease = 1 - Math.pow(0.0001, dt)
+    legs.forEach((l, i) => {
+      const goal = j.y ? (i ? -0.35 : 0.45) : seated ? -1.4 : i ? -swing : swing
+      l.current.rotation.x = THREE.MathUtils.lerp(l.current.rotation.x, goal, walking ? 1 : ease)
+    })
+    arms.forEach((a, i) => {
+      const goal = j.y ? -0.9 : i ? swing * 0.8 : -swing * 0.8
+      a.current.rotation.x = THREE.MathUtils.lerp(a.current.rotation.x, goal, walking ? 1 : ease)
+    })
+    // 몸은 한 걸음마다 살짝 오르내리고 진행 방향으로 조금 기운다
+    body.current.position.y = j.y ? 0 : walking ? Math.abs(Math.cos(ph)) * 0.04 : Math.sin(t * 2) * 0.015
+    body.current.rotation.x = THREE.MathUtils.lerp(body.current.rotation.x, walking ? 0.08 : 0, ease)
     // 공중에서는 몸이 살짝 늘어난다
     body.current.scale.y = THREE.MathUtils.lerp(body.current.scale.y, j.y ? 1 + Math.min(Math.abs(j.v) * 0.015, 0.1) : 1, 0.3)
 
     camGoal.copy(posRef.current).add(viewOffset(view.current, look))
-    camera.position.lerp(camGoal, 1 - Math.pow(0.0005, dt))
-    look.copy(posRef.current).setY(0.9)
-    camera.lookAt(look)
+    camGoal.y += ground.current
+    if (!cameraControlled) camera.position.lerp(camGoal, 1 - Math.pow(0.0005, dt))
+    look.copy(posRef.current).setY(ground.current + 0.9)
+    if (!cameraControlled) camera.lookAt(look)
 
     onMove?.(posRef.current)
   })
@@ -160,24 +197,30 @@ export default function Robot({ posRef, targetRef, keys, view, name, bubble, onM
           <meshStandardMaterial color="#2BD36B" emissive="#2BD36B" emissiveIntensity={0.6} />
         </mesh>
         {/* 팔 */}
-        <mesh position={[-0.38, 0.75, 0]} rotation={[0, 0, 0.2]} castShadow>
-          <capsuleGeometry args={[0.05, 0.25, 4, 8]} />
-          <meshStandardMaterial color={dark} />
-        </mesh>
-        <mesh position={[0.38, 0.75, 0]} rotation={[0, 0, -0.2]} castShadow>
-          <capsuleGeometry args={[0.05, 0.25, 4, 8]} />
-          <meshStandardMaterial color={dark} />
-        </mesh>
+        {[-1, 1].map((s, i) => (
+          <group key={s} position={[s * 0.36, 0.9, 0]} rotation={[0, 0, s * -0.2]}>
+            <group ref={arms[i]}>
+              <mesh position={[0, -0.16, 0]} castShadow>
+                <capsuleGeometry args={[0.05, 0.25, 4, 8]} />
+                <meshStandardMaterial color={dark} />
+              </mesh>
+            </group>
+          </group>
+        ))}
       </group>
       {/* 다리 */}
-      <mesh position={[-0.13, 0.12, 0]} castShadow>
-        <cylinderGeometry args={[0.06, 0.07, 0.24, 8]} />
-        <meshStandardMaterial color={dark} />
-      </mesh>
-      <mesh position={[0.13, 0.12, 0]} castShadow>
-        <cylinderGeometry args={[0.06, 0.07, 0.24, 8]} />
-        <meshStandardMaterial color={dark} />
-      </mesh>
+      {[-1, 1].map((s, i) => (
+        <group key={s} ref={legs[i]} position={[s * 0.13, 0.3, 0]}>
+          <mesh position={[0, -0.13, 0]} castShadow>
+            <cylinderGeometry args={[0.06, 0.065, 0.26, 8]} />
+            <meshStandardMaterial color={dark} />
+          </mesh>
+          <mesh position={[0, -0.27, 0.05]} castShadow>
+            <boxGeometry args={[0.13, 0.07, 0.22]} />
+            <meshStandardMaterial color={dark} />
+          </mesh>
+        </group>
+      ))}
 
       <Html position={[0, 2.25, 0]} center zIndexRange={[1, 0]}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>

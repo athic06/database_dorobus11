@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useLayoutEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Label } from './Landmarks.jsx'
@@ -10,6 +10,32 @@ import { LAKE, PLACES } from './layout.js'
 const at = (id) => PLACES[id].pos
 
 const Std = (props) => <meshStandardMaterial roughness={0.8} {...props} />
+
+// 같은 모양 여러 개를 그리기 호출 한 번으로 그린다. items: [{ pos, rot?, scale?, color? }]
+function Many({ items, children, castShadow, receiveShadow, ...mat }) {
+  const ref = useRef()
+  useLayoutEffect(() => {
+    const o = new THREE.Object3D()
+    const c = new THREE.Color()
+    items.forEach((it, i) => {
+      o.position.set(...it.pos)
+      o.rotation.set(...(it.rot || [0, 0, 0]))
+      o.scale.set(...(it.scale || [1, 1, 1]))
+      o.updateMatrix()
+      ref.current.setMatrixAt(i, o.matrix)
+      if (it.color) ref.current.setColorAt(i, c.set(it.color))
+    })
+    ref.current.instanceMatrix.needsUpdate = true
+    if (ref.current.instanceColor) ref.current.instanceColor.needsUpdate = true
+    ref.current.computeBoundingSphere()
+  }, [items])
+  return (
+    <instancedMesh ref={ref} args={[null, null, items.length]} castShadow={castShadow} receiveShadow={receiveShadow}>
+      {children}
+      <meshStandardMaterial roughness={0.8} {...mat} />
+    </instancedMesh>
+  )
+}
 
 /* ---------------- 호수 공원: 선착장, 오리배, 벤치 ---------------- */
 function SwanBoat({ radius, speed, phase, color }) {
@@ -193,6 +219,26 @@ export function FlowerGarden() {
       return { a, color: colors[i], blooms }
     })
   }, [])
+  // 꽃밭마다 회전된 좌표를 정원 기준 좌표로 미리 바꿔 둔다
+  const flowers = useMemo(() => {
+    const stems = []
+    const heads = []
+    for (const b of beds) {
+      const cx = Math.cos(b.a) * 8
+      const cz = Math.sin(b.a) * 8
+      const ca = Math.cos(-b.a)
+      const sa = Math.sin(-b.a)
+      for (const [x, z] of b.blooms) {
+        const lx = z * 1.8
+        const lz = x
+        const wx = cx + lx * ca + lz * sa
+        const wz = cz - lx * sa + lz * ca
+        stems.push({ pos: [wx, 0.65, wz] })
+        heads.push({ pos: [wx, 0.95, wz], color: b.color })
+      }
+    }
+    return { stems, heads }
+  }, [beds])
   return (
     <group position={at('garden')}>
       <Fountain />
@@ -202,20 +248,14 @@ export function FlowerGarden() {
             <cylinderGeometry args={[3, 3.2, 0.4, 24]} />
             <Std color="#7A5B3E" />
           </mesh>
-          {b.blooms.map(([x, z], k) => (
-            <group key={k} position={[z * 1.8, 0.4, x]}>
-              <mesh position={[0, 0.25, 0]}>
-                <cylinderGeometry args={[0.03, 0.03, 0.5, 4]} />
-                <Std color="#4E9A43" />
-              </mesh>
-              <mesh position={[0, 0.55, 0]}>
-                <icosahedronGeometry args={[0.24, 0]} />
-                <Std color={b.color} flatShading />
-              </mesh>
-            </group>
-          ))}
         </group>
       ))}
+      <Many items={flowers.stems} color="#4E9A43">
+        <cylinderGeometry args={[0.03, 0.03, 0.5, 4]} />
+      </Many>
+      <Many items={flowers.heads} flatShading>
+        <icosahedronGeometry args={[0.24, 0]} />
+      </Many>
       {/* 장미 아치: 정원 입구(창고 쪽) */}
       <group position={[7, 0, 5.5]} rotation={[0, 0.65, 0]}>
         <mesh position={[0, 0, 0]}>
@@ -418,7 +458,7 @@ function Rails() {
       const a = (i / 90) * Math.PI * 2
       trackPoint(a, p)
       trackPoint(a + 0.01, q)
-      out.push({ x: p.x, z: p.z, r: Math.atan2(q.x - p.x, q.z - p.z) })
+      out.push({ pos: [p.x, 0.06, p.z], rot: [0, Math.atan2(q.x - p.x, q.z - p.z), 0] })
     }
     return out
   }, [])
@@ -430,12 +470,9 @@ function Rails() {
           <Std color="#5E6675" roughness={0.4} />
         </mesh>
       ))}
-      {sleepers.map((s, i) => (
-        <mesh key={i} position={[s.x, 0.06, s.z]} rotation={[0, s.r, 0]} receiveShadow>
-          <boxGeometry args={[2.2, 0.1, 0.4]} />
-          <Std color="#7A5B3E" />
-        </mesh>
-      ))}
+      <Many items={sleepers} color="#7A5B3E" receiveShadow>
+        <boxGeometry args={[2.2, 0.1, 0.4]} />
+      </Many>
     </group>
   )
 }
@@ -557,12 +594,10 @@ export function Observatory() {
 /* ---------------- 캠핑장: 텐트, 모닥불, 반딧불 ---------------- */
 function Campfire() {
   const flame = useRef()
-  const light = useRef()
   useFrame(({ clock }) => {
     const t = clock.elapsedTime
     const f = 1 + Math.sin(t * 13) * 0.08 + Math.sin(t * 7.3) * 0.06
     flame.current.scale.set(f, 1 + Math.sin(t * 9) * 0.15, f)
-    light.current.intensity = 14 + Math.sin(t * 11) * 3
   })
   return (
     <group>
@@ -588,7 +623,6 @@ function Campfire() {
           <meshStandardMaterial color="#FFF2B0" emissive="#FFD45E" emissiveIntensity={4} />
         </mesh>
       </group>
-      <pointLight ref={light} position={[0, 1.4, 0]} color="#FF9A3D" intensity={14} distance={12} />
     </group>
   )
 }

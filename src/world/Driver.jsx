@@ -1,3 +1,4 @@
+import { groundHeight } from './layout.js'
 import { useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
@@ -19,7 +20,8 @@ const look = new THREE.Vector3()
 const off = new THREE.Vector3()
 
 // 모바일 로봇 자동차 조작: W/S 가속·후진, A/D 방향. 카메라는 차 뒤를 따라가고 드래그로 둘러볼 수 있다.
-export default function Driver({ posRef, headingRef, keys, view, colliders, half, frozen, onMove, vehicle = 'car' }) {
+// parked: 차에서 내려 걷는 동안. 차는 그 자리에 세워 두고, 카메라와 햇빛 그림자는 followRef(걷는 캐릭터)를 따라간다.
+export default function Driver({ posRef, headingRef, keys, view, colliders, half, frozen, cameraControlled = false, onMove, vehicle = 'car', parked = false, followRef }) {
   const top = MAX_SPEED * vehicleOf(vehicle).speed
   const car = useRef()
   const wheels = [useRef(), useRef(), useRef(), useRef()]
@@ -39,8 +41,17 @@ export default function Driver({ posRef, headingRef, keys, view, colliders, half
 
   useFrame((_, rawDt) => {
     const dt = Math.min(rawDt, 0.1)
+    if (parked) {
+      speed.current = 0
+      const f = followRef?.current || posRef.current
+      if (sun.current) {
+        sun.current.position.set(f.x + 30, 50, f.z + 20)
+        sun.current.target.position.set(f.x, 0, f.z)
+      }
+      return
+    }
     const k = frozen ? NO_KEYS : keys.current
-    let v = speed.current
+    let v = frozen ? 0 : speed.current
     if (k.forward) v += (v < 0 ? BRAKE : ACCEL) * dt
     else if (k.back) v -= (v > 0 ? BRAKE : ACCEL) * dt
     else v -= Math.sign(v) * Math.min(Math.abs(v), DRAG * dt)
@@ -73,6 +84,7 @@ export default function Driver({ posRef, headingRef, keys, view, colliders, half
     p.z = THREE.MathUtils.clamp(p.z, -lim, lim)
     speed.current = v
 
+    p.y = groundHeight(p.x,p.z)
     car.current.position.copy(p)
     car.current.rotation.y = h
     car.current.rotation.z = THREE.MathUtils.lerp(car.current.rotation.z, -steer * Math.min(1, Math.abs(v) / top) * 0.06, 0.1)
@@ -83,9 +95,10 @@ export default function Driver({ posRef, headingRef, keys, view, colliders, half
     if (Math.abs(v) > 2) vw.yaw *= 1 - Math.min(1, dt * 1.2)
     const camView = { yaw: h + Math.PI + vw.yaw, pitch: vw.pitch, dist: vw.dist }
     camGoal.copy(p).add(viewOffset(camView, off))
-    camera.position.lerp(camGoal, 1 - Math.pow(0.001, dt))
-    look.set(p.x, 2, p.z)
-    camera.lookAt(look)
+    camGoal.y = Math.max(camGoal.y, groundHeight(camGoal.x,camGoal.z) + 1.4)
+    if (!cameraControlled) camera.position.lerp(camGoal, 1 - Math.pow(0.001, dt))
+    look.set(p.x, p.y + 2, p.z)
+    if (!cameraControlled) camera.lookAt(look)
 
     if (sun.current) {
       sun.current.position.set(p.x + 30, 50, p.z + 20)
@@ -98,7 +111,10 @@ export default function Driver({ posRef, headingRef, keys, view, colliders, half
     <>
       <directionalLight
         ref={sun}
-        intensity={1.7}
+        intensity={2.1}
+        color="#FFF0D9"
+        shadow-bias={-0.00015}
+        shadow-normalBias={0.035}
         castShadow
         shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-35}

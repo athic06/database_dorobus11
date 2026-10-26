@@ -859,3 +859,19 @@ body:has(.pc) .demo-dock { display: none; }
 .dialog-rest { visibility: hidden; }
 .dialog-next { transition: opacity 0.2s ease; }
 .dialog-next.typing { opacity: 0.35; }
+
+/* Scene entries leave the world visible and respect reduced motion. */
+.scene-entry { position: fixed; inset: 0; z-index: 80; pointer-events: auto; animation: entry-reveal .3s ease both; }
+.scene-entry-top { position: absolute; inset: 0 0 auto; height: 7vh; background: #12272be8; }
+.scene-entry-caption { position: absolute; bottom: 0; left: 0; right: 0; padding: 22px 5vw; background: linear-gradient(transparent, #12272bf2); color: #f3e9d6; display: flex; flex-direction: column; gap: 7px; }
+.scene-entry-caption small { font-size: 10px; letter-spacing: .26em; color: #d8bb84; }
+.scene-entry-caption strong { font-size: clamp(16px, 2vw, 25px); font-weight: 500; }
+.scene-entry > button { position: absolute; right: 5vw; top: 2vh; background: transparent; color: #f3e9d6; border: 0; cursor: pointer; padding: 8px; }
+.mission { animation: mission-arrive .35s cubic-bezier(.2,.7,.3,1) both; }
+@keyframes entry-reveal { from { opacity: 0; } to { opacity: 1; } }
+@keyframes mission-arrive { from { opacity: 0; transform: translateY(18px) scale(.985); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .scene-entry, .mission { animation: none; } }
+
+.room-page::after { content: ''; position: fixed; inset: 0; background: #142b30; pointer-events: none; z-index: 90; animation: scene-arrival .65s ease-out forwards; }
+@keyframes scene-arrival { from { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .room-page::after { animation: none; opacity: 0; } }
