@@ -7,7 +7,7 @@ import * as THREE from 'three'
 import ViewControls from '../myroom/ViewControls.jsx'
 import Robot from '../myroom/Robot.jsx'
 import Driver from '../world/Driver.jsx'
-import Minimap, { toMap } from '../world/Minimap.jsx'
+import Minimap, { localViewBox, toMap } from '../world/Minimap.jsx'
 import { Xylo, Naty, CodexSilhouette, Person } from '../world/Characters.jsx'
 import {
   Harmonia, FerrisWheel, RollerCoaster, Carousel, CubeVault, Signboard, MyRoomHouse, Shop, Lab, Storage, Safari, CaveMountain,
@@ -238,6 +238,7 @@ export default function World() {
   // 프레임이 계속 떨어지는 컴퓨터에서는 해상도를 낮추고 빛 번짐 효과를 끈다
   const [lowGfx, setLowGfx] = useState(false)
   const carMark = useRef()
+  const miniView = useRef() // 작은 미니맵: 내 위치를 가운데에 두고 따라 움직인다
   // 미니맵을 누르거나 M 키: 지도 크게 보기 (보는 동안 차는 멈춘다)
   const [bigMap, setBigMap] = useState(false)
   const bigMark = useRef()
@@ -473,6 +474,7 @@ export default function World() {
     onNear(pos)
     lastMark.current = `translate(${toMap(pos.x)} ${toMap(pos.z)}) rotate(${180 - (h * 180) / Math.PI})`
     carMark.current?.setAttribute('transform', lastMark.current)
+    miniView.current?.setAttribute('viewBox', localViewBox(pos.x, pos.z))
     bigMark.current?.setAttribute('transform', lastMark.current)
   }
 
@@ -607,7 +609,7 @@ export default function World() {
         )}
       </div>
       <div className="hud hud-minimap">
-        <Minimap ref={carMark} openIds={openIds} markers={markers} onClick={() => !busy && setBigMap(true)} />
+        <Minimap ref={carMark} viewRef={miniView} openIds={openIds} markers={markers} onClick={() => !busy && setBigMap(true)} />
         {p.voidBuilt && <button className="void-btn" onClick={() => setChat(true)}>🤖 보이드와 대화</button>}
         {faults.length > 0 && <p className="fault-note">오늘의 업무 · 고장 {faults.length}곳 (미니맵 빨간 점)</p>}
       </div>

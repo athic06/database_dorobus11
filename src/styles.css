@@ -141,7 +141,8 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 /* open world */
 .hud-minimap { top: 64px; right: 16px; }
 .minimap { display: block; width: 210px; height: 210px; border-radius: 16px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25), inset 0 0 0 2px rgba(255, 255, 255, 0.6); }
-.mm-name { font-size: 6px; font-weight: 700; fill: #2b3140; }
+.mm-name { font-weight: 800; fill: #fff; paint-order: stroke; stroke: rgba(20, 30, 24, 0.8); stroke-width: 0.7px; stroke-linejoin: round; }
+.minimap.local { background: #4E6A4E; }
 .world-label { padding: 5px 12px; border-radius: 999px; background: linear-gradient(180deg, rgba(36, 44, 66, 0.86), rgba(18, 22, 34, 0.86)); border: 1px solid rgba(255, 255, 255, 0.25); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25); color: #fff; font-size: 15px; font-weight: 800; letter-spacing: -0.2px; white-space: nowrap; user-select: none; }
 .world-label.locked::after { content: ' 🔒'; }
 .nametag.npc { background: #3b6d2a; }
@@ -878,5 +879,5 @@ body:has(.pc) .demo-dock { display: none; }
 .map-legend { display: flex; align-items: center; gap: 6px; flex: 1; font-size: 12px; color: #5a6275; }
 .map-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-left: 8px; }
 .minimap.big { width: 100%; height: auto; aspect-ratio: 1; border-radius: 14px; }
-.minimap.big .mm-name { font-size: 4px; fill: #fff; paint-order: stroke; stroke: rgba(20, 30, 24, 0.75); stroke-width: 0.9px; }
+.minimap.big .mm-name { stroke-width: 0.9px; }
 .map-tip { display: block; margin-top: 6px; text-align: center; color: #8a93a6; }
