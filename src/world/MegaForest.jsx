@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef } from 'react'
+import { useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { useGLTF, useTexture } from '@react-three/drei'
 import * as THREE from 'three'
@@ -8,8 +8,8 @@ import { DISTRICTS, PLACES, STORY_CLEARINGS, TREES, groundHeight, isOpenGround, 
 // 나무 모델이 정교해서(그루당 삼각형 1,600~4,000개) 카메라 가까이(NEAR)만 진짜 모델로 그리고,
 // 그 바깥(FAR까지)은 같은 나무를 처음에 한 번 찍어 만든 그림판(빌보드)을 카메라 쪽으로 돌려 세운다.
 // 안개 너머(FAR 밖)는 그리지 않는다. 카메라가 6m 넘게 움직였을 때만 다시 고른다.
-const NEAR = 42
-const FAR = 230
+const NEAR = 35
+const FAR = 190
 const BASE = `${import.meta.env.BASE_URL}models/forest/`
 
 const BROADLEAF = ['CommonTree_3', 'CommonTree_4', 'CommonTree_5']
@@ -40,9 +40,12 @@ function addSway(material, amp) {
 }
 
 // 재질 이름(모델에 들어 있음) → 공용 재질. 텍스처는 모든 모델이 같이 쓴다.
+// 화면이 다시 그려져도 같은 재질을 쓰도록 처음 한 번만 만들어 모듈에 보관한다.
+let sharedMaterials = null
 function useMaterials() {
   const tex = useTexture({ bark: `${BASE}bark.jpg`, rocks: `${BASE}rocks.jpg`, leaves: `${BASE}leaves.png`, pine: `${BASE}pine.png`, bush: `${BASE}bush.png`, flowers: `${BASE}flowers.png` })
-  return useMemo(() => {
+  if (sharedMaterials) return sharedMaterials
+  sharedMaterials = (() => {
     for (const t of Object.values(tex)) {
       t.flipY = false // glTF 텍스처 좌표 기준
       t.colorSpace = THREE.SRGBColorSpace
@@ -63,7 +66,8 @@ function useMaterials() {
       Flowers: leaf(tex.flowers, 0.02),
       Rocks: new THREE.MeshStandardMaterial({ map: tex.rocks, roughness: 1 }),
     }
-  }, [tex])
+  })()
+  return sharedMaterials
 }
 
 // GLB → [{ geometry, material }] (모델 안의 위치는 도형에 미리 반영)
@@ -153,16 +157,15 @@ function useItemData(items, scale) {
 // 거리별로 인스턴스를 채운다. near: 진짜 모델(조각마다 한 묶음), far: 그림판 한 묶음
 function useDistanceFill(items, data, nearMeshes, farMesh, near, far) {
   const last = useRef({ x: 1e9, z: 1e9 })
-  useLayoutEffect(() => {
+  useFrame(({ camera }) => {
+    // 처음 보는 메시는 색 버퍼를 달고 비운 뒤, 이번 프레임에 바로 채운다
     for (const m of [...nearMeshes.current, farMesh?.current]) {
-      if (!m) continue
+      if (!m || m.userData.filled === data) continue
       m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(items.length * 3), 3)
       m.count = 0
+      m.userData.filled = data
+      last.current = { x: 1e9, z: 1e9 }
     }
-    last.current = { x: 1e9, z: 1e9 }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items])
-  useFrame(({ camera }) => {
     const cam = camera.position
     if (Math.hypot(cam.x - last.current.x, cam.z - last.current.z) < 6) return
     last.current = { x: cam.x, z: cam.z }

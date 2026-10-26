@@ -209,7 +209,7 @@ export const PARK_COLLIDERS = [
 ]
 export const TREES = (() => {
   const rnd=seeded(42), list=[], cells=new Map()
-  for(let i=0;i<45000 && list.length<2100;i++) {
+  for(let i=0;i<45000 && list.length<1400;i++) {
     const x=(rnd()*2-1)*(WORLD_HALF-5),z=(rnd()*2-1)*(WORLD_HALF-5)
     if(DISTRICTS.some(d=>Math.hypot(x-PLACES[d.id].pos[0],z-PLACES[d.id].pos[2])<d.radius+5 || Math.hypot(x-d.gate[0],z-d.gate[2])<7))continue
     if(PROMENADE_SITES.some(([cx,,cz])=>Math.hypot(x-cx,z-cz)<13))continue

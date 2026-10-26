@@ -1,5 +1,5 @@
 import { useSceneEntry, sceneShot, EntryCamera, EntryOverlay } from '../world/SceneEntry.jsx'
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { PerformanceMonitor, Preload } from '@react-three/drei'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -14,7 +14,7 @@ import {
 } from '../world/Landmarks.jsx'
 import Terrain from '../world/Terrain.jsx'
 import { Outskirts } from '../world/Scenery.jsx'
-import { Balloons, Birds, Clouds, Glitter, PostFX, SkyDome } from '../world/Atmosphere.jsx'
+import { Balloons, Birds, Clouds, PerfProbe, SkyDome } from '../world/Atmosphere.jsx'
 import { ALL_COLLIDERS, ALL_ROAD_SEGMENTS, PLACES, ROADS, VAULT, WALK_COLLIDERS, WORLD_HALF, walkBlocked, walkHeight } from '../world/layout.js'
 import ShopRestockMission from '../missions/ShopRestockMission.jsx'
 import SignMission from '../missions/SignMission.jsx'
@@ -80,6 +80,35 @@ const SCENIC_LINES = {
     { who: '리코', text: '불멍 하기 딱 좋은 곳이네. 잠깐 쉬었다 가자.' },
   ],
 }
+
+// 월드의 고정 배경(지형, 숲, 명소, 놀이시설, 하늘). 근처 안내 문구 같은 화면 상태가 바뀔 때마다
+// 3D 장면 전체를 다시 맞춰 보지 않도록, 아래 값이 바뀔 때만 다시 그린다.
+const Scenery = memo(function Scenery({ stopped, dusk, plazaOpen, shopReopened, cubesFound, shopState, voidStarted, caveOpen, faultKey }) {
+  const broken = (id) => faultKey.split(',').includes(id)
+  return (
+    <>
+      <Terrain roads={ROAD_SEGMENTS} half={WORLD_HALF} night={stopped || dusk} />
+      <Outskirts />
+      <Clouds dim={stopped} count={10} />
+      {!stopped && <Birds />}
+      {!stopped && <Balloons />}
+      <MyRoomHouse />
+      <Harmonia stopped={stopped} gateOpen={plazaOpen} />
+      <Signboard stopped={stopped || broken('sign')} />
+      <FerrisWheel stopped={stopped || broken('ferris')} />
+      <RollerCoaster stopped={stopped || broken('coaster')} />
+      <Carousel stopped={stopped || broken('carousel')} locked={!shopReopened} />
+      <CubeVault open={shopReopened} cubes={shopReopened && !cubesFound} />
+      <Shop state={shopState} />
+      <Lab open={voidStarted} />
+      <Storage />
+      <Safari />
+      <CaveMountain open={caveOpen} />
+      <Xylo position={XYLO_POS} rotation={-2.4} />
+      <Naty position={NATY_POS} label="?" />
+    </>
+  )
+})
 
 const SPOTS = [
   { id: 'myroom', pos: [0, 0, 65], radius: 5 },
@@ -482,39 +511,31 @@ export default function World() {
 
   return (
     <div className="room-page world">
-      <Canvas shadows camera={{ position: [spawn[0], 8, spawn[1] - Math.cos(spawn[2]) * 12], fov: 55, far: 340 }} dpr={lowGfx ? 1 : [1, 1.25]}>
+      <Canvas shadows camera={{ position: [spawn[0], 8, spawn[1] - Math.cos(spawn[2]) * 12], fov: 55, far: 240 }} dpr={lowGfx ? 0.75 : 1} gl={{ powerPreference: 'high-performance' }}>
         {/* 화면 밖 물체까지 처음에 셰이더를 미리 만들어 둔다. 달리다가 새 물체가 보일 때 멈칫하지 않게. */}
         <Preload all />
+        {import.meta.env.DEV && <PerfProbe />}
         <PerformanceMonitor onDecline={() => setLowGfx(true)} flipflops={2} />
         <color attach="background" args={[sky]} />
-        <fog attach="fog" args={[sky, 55, 260]} />
+        <fog attach="fog" args={[sky, 45, 200]} />
         <SkyDome top={skyTop} horizon={sky} />
         <hemisphereLight args={[stopped ? '#D6DCE8' : dusk ? '#FFE2C4' : '#DDF0FF', '#38503D', 0.85]} />
         <ambientLight intensity={stopped ? 0.35 : 0.32} />
         {!entry.active && <ViewControls view={view} />}
-        <Terrain roads={ROAD_SEGMENTS} half={WORLD_HALF} night={stopped || dusk} />
-        <Outskirts />
-        <Clouds dim={stopped} />
-        {!stopped && <Birds />}
-        {!stopped && <Balloons />}
-        {!stopped && <Glitter position={[0, 8, 0]} />}
-        <MyRoomHouse />
-        <Harmonia stopped={stopped} gateOpen={p.plazaOpen} />
-        <Signboard stopped={stopped || faults.includes('sign')} />
-        <FerrisWheel stopped={stopped || faults.includes('ferris')} />
-        <RollerCoaster stopped={stopped || faults.includes('coaster')} />
-        <Carousel stopped={stopped || faults.includes('carousel')} locked={!p.shopReopened} />
-        <CubeVault open={p.shopReopened} cubes={p.shopReopened && !p.cubesFound} />
-        <Shop state={shopState} />
-        <Lab open={p.voidStarted} />
+        <Scenery
+          stopped={stopped}
+          dusk={dusk}
+          plazaOpen={p.plazaOpen}
+          shopReopened={p.shopReopened}
+          cubesFound={p.cubesFound}
+          shopState={shopState}
+          voidStarted={p.voidStarted}
+          caveOpen={caveOpen}
+          faultKey={faults.join(',')}
+        />
         {partIds.map((id) => <PartSpot key={id} id={id} />)}
         {p.voidBuilt && <VoidFollower posRef={posRef} headingRef={headingRef} />}
         {faults.map((id) => <FaultMarker key={id} position={BREAKABLE[id].pos} name={BREAKABLE[id].name} />)}
-        <Storage />
-        <Safari />
-        <CaveMountain open={caveOpen} />
-        <Xylo position={XYLO_POS} rotation={-2.4} />
-        <Naty position={NATY_POS} label="?" />
         {codex === 'silhouette' && <CodexSilhouette position={CODEX_POS} rotation={-0.4} />}
         {codex === 'revealed' && <CodexSilhouette position={CODEX_MEET_POS} rotation={0.9} revealed />}
         <Driver
@@ -548,7 +569,6 @@ export default function World() {
             speed={6.5}
           />
         )}
-        <PostFX bloom={stopped ? 0.18 : 0.28} lite={lowGfx} />
         <EntryCamera entry={entry} />
       </Canvas>
       <EntryOverlay entry={entry} />

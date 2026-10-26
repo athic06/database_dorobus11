@@ -8,6 +8,8 @@ import FerrisHill from './FerrisHill.jsx'
 import { Label } from './Landmarks.jsx'
 
 const TAU = Math.PI * 2
+const CAR_P = new THREE.Vector3() // 롤러코스터 차량 위치 계산용 (매 프레임 새로 만들지 않게)
+const CAR_T = new THREE.Vector3()
 const IVORY = '#F2E9D8', TEAL = '#276B70', GOLD = '#C9A364', INK = '#253B48'
 const paint = { metalness: 0.32, roughness: 0.3 }
 
@@ -136,8 +138,9 @@ export function RollerCoaster({ stopped }) {
     cars.current.forEach((car, i) => {
       if (!car) return
       const t = (progress.current - i * 0.022 + 1) % 1
-      const p = track.center.getPointAt(t), tangent = track.center.getTangentAt(t)
-      car.position.copy(p).add(new THREE.Vector3(0, 0.48, 0))
+      const p = track.center.getPointAt(t, CAR_P), tangent = track.center.getTangentAt(t, CAR_T)
+      car.position.copy(p)
+      car.position.y += 0.48
       car.lookAt(p.x + tangent.x, p.y + 0.48 + tangent.y, p.z + tangent.z)
     })
   })

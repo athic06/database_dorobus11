@@ -205,14 +205,7 @@ export function CubeVault({ open, cubes }) {
 export function Signboard({ stopped }) {
   const COLS = 64
   const ROWS = 16
-  const tex = useMemo(() => {
-    const c = document.createElement('canvas')
-    c.width = COLS * 8
-    c.height = ROWS * 8
-    const t = new THREE.CanvasTexture(c)
-    t.colorSpace = THREE.SRGBColorSpace
-    return t
-  }, [])
+  // 글자 모양(켜진 점) 마스크
   const textMask = useMemo(() => {
     const draw = (txt) => {
       const c = document.createElement('canvas')
@@ -231,29 +224,48 @@ export function Signboard({ stopped }) {
     }
     return { ok: draw('WELCOME TO DOROLAND  ★  '), stop: draw('SYSTEM STOP · · ·  ') }
   }, [])
+  // 문구 한 바퀴를 점으로 한 번만 그려 둔 긴 띠. 흐르는 효과는 텍스처 위치(offset)만 옮긴다.
+  // (예전처럼 매번 점 1,000개를 다시 그리고 텍스처를 GPU로 올리지 않아 가볍다)
+  const strips = useMemo(() => {
+    const make = (m, color) => {
+      const c = document.createElement('canvas')
+      c.width = m.w * 8
+      c.height = ROWS * 8
+      const g = c.getContext('2d')
+      g.fillStyle = '#111317'
+      g.fillRect(0, 0, c.width, c.height)
+      for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < m.w; x++) {
+          g.fillStyle = m.on(x, y) ? color : '#262A31'
+          g.beginPath()
+          g.arc(x * 8 + 4, y * 8 + 4, 3, 0, Math.PI * 2)
+          g.fill()
+        }
+      }
+      const t = new THREE.CanvasTexture(c)
+      t.colorSpace = THREE.SRGBColorSpace
+      t.wrapS = THREE.RepeatWrapping
+      t.repeat.set(COLS / m.w, 1)
+      t.generateMipmaps = false
+      t.minFilter = THREE.LinearFilter
+      return { t, w: m.w }
+    }
+    return { ok: make(textMask.ok, '#FFC94D'), stop: make(textMask.stop, '#FF4D4D') }
+  }, [textMask])
+  const strip = stopped ? strips.stop : strips.ok
+  const tex = strip.t
+  const screen = useRef()
   const offset = useRef(0)
   const acc = useRef(0)
-  useEffect(() => () => tex.dispose(), [tex])
+  useEffect(() => () => { strips.ok.t.dispose(); strips.stop.t.dispose() }, [strips])
   useFrame((s, dt) => {
     acc.current += dt
     if (acc.current < 0.08) return
     acc.current = 0
     offset.current += 1
-    const g = tex.image.getContext('2d')
-    g.fillStyle = '#111317'
-    g.fillRect(0, 0, tex.image.width, tex.image.height)
-    const m = stopped ? textMask.stop : textMask.ok
-    const blink = stopped && Math.floor(s.clock.elapsedTime * 2) % 2 === 0
-    for (let y = 0; y < ROWS; y++) {
-      for (let x = 0; x < COLS; x++) {
-        const on = m.on(x + offset.current, y)
-        g.fillStyle = on ? (stopped ? (blink ? '#FF4D4D' : '#5A1E1E') : '#FFC94D') : '#262A31'
-        g.beginPath()
-        g.arc(x * 8 + 4, y * 8 + 4, 3, 0, Math.PI * 2)
-        g.fill()
-      }
-    }
-    tex.needsUpdate = true
+    tex.offset.x = (offset.current % strip.w) / strip.w
+    // 멈춤 상태: 빨간 글자가 깜빡인다 (색만 바꿈)
+    if (screen.current) screen.current.color.setScalar(stopped && Math.floor(s.clock.elapsedTime * 2) % 2 ? 0.35 : 1)
   })
   return (
     <group position={at('sign')} rotation={[0, 0, 0]}>
@@ -269,7 +281,7 @@ export function Signboard({ stopped }) {
       </mesh>
       <mesh position={[2.5, 6.5, 0.71]}>
         <planeGeometry args={[9, 2.25]} />
-        <meshBasicMaterial map={tex} toneMapped={false} />
+        <meshBasicMaterial ref={screen} map={tex} toneMapped={false} />
       </mesh>
       <Label y={9.2}>대형 전광판</Label>
     </group>

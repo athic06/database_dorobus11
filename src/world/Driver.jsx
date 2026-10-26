@@ -116,11 +116,11 @@ export default function Driver({ posRef, headingRef, keys, view, colliders, half
         shadow-bias={-0.00015}
         shadow-normalBias={0.035}
         castShadow
-        shadow-mapSize={[2048, 2048]}
-        shadow-camera-left={-35}
-        shadow-camera-right={35}
-        shadow-camera-top={35}
-        shadow-camera-bottom={-35}
+        shadow-mapSize={[1024, 1024]}
+        shadow-camera-left={-30}
+        shadow-camera-right={30}
+        shadow-camera-top={30}
+        shadow-camera-bottom={-30}
         shadow-camera-far={140}
       />
       <Vehicle ref={car} id={vehicle} wheelRefs={wheels} />

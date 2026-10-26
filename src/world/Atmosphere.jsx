@@ -207,7 +207,7 @@ export function Glitter({ position, scale = [30, 12, 30], color = '#FFE08A', cou
 
 /* ---------------- 후처리: 빛 번짐, 가장자리 어둡게, 톤 매핑 ---------------- */
 // 개발 서버 전용: 한 프레임의 그리기 호출 수와 삼각형 수를 window.__perf()로 본다
-function PerfProbe() {
+export function PerfProbe() {
   const gl = useThree((st) => st.gl)
   const scene = useThree((st) => st.scene)
   const last = useRef({ calls: 0, triangles: 0 })
