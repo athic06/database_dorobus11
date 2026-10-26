@@ -4,12 +4,11 @@ import Header from '../components/Header.jsx'
 import { useStore } from '../store.jsx'
 import { ASSIGN, CLASS_INFO, COURSES, TRACKS } from '../game/courses.js'
 import { CONCEPTS, CONTENT_REWARD, contentDone, contentOf } from '../game/content.js'
-import { PLACES } from '../world/layout.js'
 
 // 내 수업: 실제 도로버스 화면처럼 수업 카드 목록 → 「수업 입장」으로 수업 상세(수업 영상, 과제, 공지, 자료, 강의 평가).
 // 상세 창의 「교실 입장」을 누르면 그때 마이룸(교실)으로 간다.
 // 과제는 수업마다 따로 만들지 않고 범용 콘텐츠 라이브러리(game/content.js)에서 골라 낸다.
-// 일반 문제는 이 화면에서 바로 풀고, 도로랜드 문제는 월드의 NPC에게 가서 푼다.
+// 과제는 이 화면에서 바로 푼다 (수업과 도로랜드 월드는 연결하지 않는다).
 export default function Courses() {
   const { progress: p } = useStore()
   const [track, setTrack] = useState('all')
@@ -136,7 +135,7 @@ function Simple({ icon, title, lines }) {
   )
 }
 
-const KIND = { quiz: { label: '일반 문제', cls: 'k-quiz' }, world: { label: '🗺️ 도로랜드 문제', cls: 'k-world' } }
+const KIND = { quiz: { label: '일반 문제', cls: 'k-quiz' } }
 
 // 수업이 범용 콘텐츠 라이브러리에서 골라 낸 과제 목록
 const assigned = (c) => ASSIGN[c.id].map(([id, date]) => ({ ...contentOf(id), date }))
@@ -174,7 +173,6 @@ function Tasks({ course: c }) {
 }
 
 function TaskDetail({ course: c, task: t }) {
-  const navigate = useNavigate()
   const { progress: p, setProgress, addCell } = useStore()
   const done = contentDone(p, t.id)
   const reward = CONTENT_REWARD[t.kind]
@@ -187,11 +185,6 @@ function TaskDetail({ course: c, task: t }) {
     addCell(reward.cell)
     setProgress({ contentDone: [...(p.contentDone || []), t.id] })
     setMsg(`과제 완료! CELL +${reward.cell}`)
-  }
-  const goWorld = () => {
-    if (!p.carCheckDone) return setMsg('도로랜드는 마이룸에서 자동차 출발 점검을 마친 뒤에 갈 수 있어요.')
-    setProgress({ worldTask: t.id, course: c.id })
-    navigate('/world')
   }
 
   return (
@@ -215,20 +208,14 @@ function TaskDetail({ course: c, task: t }) {
             <em>💎 x{reward.cell}</em>
             {reward.stamps ? <em>🐾 x{reward.stamps}</em> : null}
           </span>
-          {t.kind === 'world' && (
-            <>
-              <small className="cr-label">도로랜드에서 푸는 문제</small>
-              <p className="task-desc">{PLACES[t.place].name} 근처의 <b>{t.npc.label}</b>에게 ❗가 떠 있어요. 말을 걸면 이야기와 함께 문제가 시작돼요.</p>
-            </>
-          )}
           <small className="cr-label">출처</small>
           <p className="task-desc">도로랜드 콘텐츠 라이브러리 · {CONCEPTS[t.concept]} 문제 (다른 수업에서도 쓰는 범용 문제)</p>
         </div>
         <div className="cr-card">
-          <b>{t.kind === 'quiz' ? '📝 문제' : '🗺️ 도로랜드 문제'}</b>
+          <b>📝 문제</b>
           {done ? (
             <p className="task-ok">✓ 완료한 과제예요.</p>
-          ) : t.kind === 'quiz' ? (
+          ) : (
             <>
               <p className="task-desc">{t.q}</p>
               <div className="pick-list">
@@ -237,12 +224,6 @@ function TaskDetail({ course: c, task: t }) {
                 ))}
               </div>
               <button className="btn-primary" onClick={submitQuiz}>제출하기</button>
-            </>
-          ) : (
-            <>
-              <p className="task-desc">“{t.ask}”</p>
-              <small className="cr-label">— {t.npc.label}</small>
-              <button className="btn-primary" onClick={goWorld}>🗺️ 도로랜드에서 하기</button>
             </>
           )}
           {msg && <p className={`feedback ${msg.includes('완료') ? 'good' : 'bad'}`}>{msg}</p>}

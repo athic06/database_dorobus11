@@ -22,8 +22,6 @@ import { PART_MISSIONS } from '../missions/PartMissions.jsx'
 import VoidAssemblyMission from '../missions/VoidAssemblyMission.jsx'
 import FutureAnswer from '../components/FutureAnswer.jsx'
 import { PART_SPOTS, PartSpot, PartBeacon, VoidFollower, FaultMarker } from '../world/Ch5Props.jsx'
-import ContentMission from '../missions/ContentMission.jsx'
-import { CONTENT_REWARD, activeWorldTask, contentDone } from '../game/content.js'
 import FixMission from '../missions/FixMission.jsx'
 import VoidChat from '../components/VoidChat.jsx'
 import { BREAKABLE, pendingFaults } from '../game/daily.js'
@@ -212,11 +210,6 @@ export default function World() {
   const [routinePanel, setRoutinePanel] = useState(null) // 'vehicle' | 'quest'
   const partsDone = p.parts.length >= VOID_PARTS.length
   const partIds = p.voidStarted ? VOID_PARTS.map((x) => x.id).filter((id) => !p.parts.includes(id)) : []
-  // 수강 중인 수업의 연계 미션 NPC (내 수업에서 고른 수업 하나)
-  // 내 수업 과제에서 「도로랜드에서 하기」를 누른 도로랜드 문제 (범용 콘텐츠). 그 NPC가 ❗로 나타난다
-  const task = activeWorldTask(p)
-  const taskCleared = task && contentDone(p, task.id)
-
   // 리코가 큐브 속에 있는 동안에는 리코 대사를 뺀다
   const say = (lines, onDone) => {
     const shown = rikoMissing(p) ? lines.filter((l) => l.who !== '리코') : lines
@@ -226,7 +219,6 @@ export default function World() {
   const { near, nearRef, onMove: onNear } = useProximity([
     ...SPOTS,
     ...VOID_PARTS.map((x) => ({ id: `part-${x.id}`, pos: PART_SPOTS[x.id].pos, radius: 4.5, hidden: !partIds.includes(x.id) })),
-    { id: 'task', pos: task ? task.pos : [0, 0, 0], radius: 4.5, hidden: !task },
   ])
   // 일일 퀘스트(탐험의 날): 명소 근처에 가면 방문으로 기록한다
   useEffect(() => {
@@ -405,10 +397,6 @@ export default function World() {
     if (id === 'xylo' && p.letterSeen && !p.voidStarted) {
       return say(VOID_INTRO, () => { setDialog(null); setProgress({ voidStarted: true }) })
     }
-    if (id === 'task') {
-      if (taskCleared) return say([{ who: task.npc.label, text: task.thanks }])
-      return say([{ who: task.npc.label, text: task.ask }, { who: '제로', text: '수업에서 낸 과제야. 배운 걸 써먹어 보자!' }], () => { setDialog(null); setMission('task') })
-    }
     if (id.startsWith('part-')) return setMission(id)
     if (id === 'lab' && partsDone && !p.voidBuilt) return setMission('assembly')
     if (id === 'storage' && p.voidBuilt && !p.codexMet) {
@@ -424,7 +412,7 @@ export default function World() {
   const interact = (id) => {
     if (entry.active) return
     if (!entersSpace(id)) return executeInteraction(id)
-    const pos = id === 'task' ? task?.pos : id.startsWith('part-') ? PART_SPOTS[id.slice(5)]?.pos : id === 'vault' ? VAULT.pos : PLACES[id]?.pos || SPOTS.find(s => s.id === id)?.pos || posRef.current.toArray()
+    const pos = id.startsWith('part-') ? PART_SPOTS[id.slice(5)]?.pos : id === 'vault' ? VAULT.pos : PLACES[id]?.pos || SPOTS.find(s => s.id === id)?.pos || posRef.current.toArray()
     const composition = { ferris: [[20, 12, 3], 13], coaster: [[-24, 12, 9], 7], carousel: [[10, 7, 18], 3.5], harmonia: [[8, 7, 27], 7], cave: [[4, 4, 14], 3], vault: [[5, 4, 8], 2], lab: [[10, 6, 14], 3] }[id]
     entry.enter(sceneShot(pos, PROMPTS[id] || '도로랜드', ...(composition || [])), () => executeInteraction(id))
   }
@@ -465,7 +453,6 @@ export default function World() {
     cave: caveOpen ? '동굴 들어가기' : '동굴',
     naty: '반짝이는 무언가',
     ...Object.fromEntries(SCENIC.map((s) => [s.id, `${PLACES[s.id].name} 둘러보기`])),
-    task: task ? (taskCleared ? `${task.npc.label}와 이야기하기` : `${task.npc.label} · 과제 「${task.title}」`) : '',
   }
 
   const openIds = [
@@ -481,7 +468,6 @@ export default function World() {
   const markers = [
     ...partIds.map((id) => ({ x: PART_SPOTS[id].pos[0], z: PART_SPOTS[id].pos[2] })),
     ...faults.map((id) => ({ x: BREAKABLE[id].pos[0], z: BREAKABLE[id].pos[2], color: '#E2574C' })),
-    ...(task && !taskCleared ? [{ x: task.pos[0], z: task.pos[2], color: '#2F7BFF' }] : []),
   ]
   const promptFor = (id) => (faults.includes(id) ? `${BREAKABLE[id].name} 고장 수리하기` : PROMPTS[id])
   const dusk = p.signsDone && !p.letterSeen
@@ -516,12 +502,6 @@ export default function World() {
         <Shop state={shopState} />
         <Lab open={p.voidStarted} />
         {partIds.map((id) => <PartSpot key={id} id={id} />)}
-        {task && (
-          <group position={task.pos}>
-            <Person position={[0, 0, 0]} rotation={task.rot} color={task.npc.color} hat={task.npc.hat} hair={task.npc.hair} label={`${taskCleared ? '' : '❗ '}${task.npc.label}`} />
-            {!taskCleared && <PartBeacon color="#7FB4FF" glow="#2F7BFF" />}
-          </group>
-        )}
         {p.voidBuilt && <VoidFollower posRef={posRef} headingRef={headingRef} />}
         {faults.map((id) => <FaultMarker key={id} position={BREAKABLE[id].pos} name={BREAKABLE[id].name} />)}
         <Storage />
@@ -671,22 +651,6 @@ export default function World() {
           />
         )
       })()}
-      {mission === 'task' && task && (
-        <ContentMission
-          item={task}
-          onClose={() => setMission(null)}
-          onClear={() => {
-            setMission(null)
-            const reward = CONTENT_REWARD.world
-            addCell(reward.cell)
-            setProgress({ contentDone: [...(p.contentDone || []), task.id], stamps: (p.stamps || 0) + reward.stamps })
-            say([
-              { who: task.npc.label, text: task.thanks },
-              { text: `(과제 완료! CELL +${reward.cell}, 탈것 스탬프 +${reward.stamps}. 내 수업 과제 목록에도 완료로 표시돼요)` },
-            ])
-          }}
-        />
-      )}
       {mission === 'assembly' && (
         <VoidAssemblyMission
           onClose={() => setMission(null)}

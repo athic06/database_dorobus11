@@ -220,5 +220,3 @@ export const CONTENT = {
 export const CONTENT_REWARD = { quiz: { cell: 50 }, world: { cell: 100, stamps: 1 } }
 export const contentOf = (id) => (CONTENT[id] ? { id, ...CONTENT[id] } : null)
 export const contentDone = (p, id) => (p.contentDone || []).includes(id)
-// 월드에 나오는 도로랜드 문제: 내 수업 과제에서 「도로랜드에서 하기」를 누른 문제 하나
-export const activeWorldTask = (p) => contentOf(p.worldTask)
