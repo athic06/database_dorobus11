@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
-import { TREES, LAMPS, DISTRICTS, PLACES, roadDistance, seeded, groundHeight, isOpenGround, STORY_CLEARINGS } from './layout.js'
+import { TREES, LAMPS, DISTRICTS, PLACES, roadDistance, seeded, groundHeight, STORY_CLEARINGS } from './layout.js'
 
 const UP = new THREE.Vector3(0, 1, 0)
 function tint(geometry, color, variation = 0, seed = 1) {
@@ -42,7 +42,7 @@ function leaf(a, b, width, color) {
   return tint(g, color, 0.14)
 }
 function broadleaf() {
-  const wood = [], foliage = [], rnd = seeded(92)
+  const wood = [], foliage = []
   wood.push(branch([0,0,0],[0.35,7.8,0],0.46,0.21),branch([0.35,7.8,0],[-0.3,12,0.4],0.21,0.07))
   for (let i=0;i<5;i++) {
     const a=i*Math.PI*2/5
@@ -59,13 +59,6 @@ function broadleaf() {
     }
     g.scale(2.8+(i%2)*0.6,1.6,2.6).translate(...center); g.computeVertexNormals()
     foliage.push(tint(g, ['#6E9865','#789D6B','#537D55'][i%3],0.3,i+8))
-    // Individual leaves break the silhouette of the crown, rather than a smooth ball.
-    for(let k=0;k<9;k++) {
-      const az=rnd()*Math.PI*2, elevation=(rnd()-0.5)*1.6
-      const start=[center[0]+Math.cos(az)*2.3,center[1]+elevation,center[2]+Math.sin(az)*2.3]
-      const end=[start[0]+Math.cos(az)*1.15,start[1]-0.25+rnd()*0.6,start[2]+Math.sin(az)*1.15]
-      foliage.push(leaf(start,end,0.3,['#668957','#779B60','#4F7950'][k%3]))
-    }
   }
   return { wood: join(wood), foliage: join(foliage) }
 }
@@ -86,20 +79,6 @@ function palm() {
     }
   }
   return {wood:join(wood),foliage:join(foliage)}
-}
-function fern() {
-  const parts=[]
-  for(let i=0;i<6;i++) {
-    const a=i*Math.PI*2/6
-    for(let k=0;k<4;k++) {
-      const t=(k+1)/5,p=[Math.cos(a)*t*1.5,Math.sin(t*Math.PI)*0.8+0.2,Math.sin(a)*t*1.5]
-      for(const side of [-1,1]) {
-        const w=(1-t)*0.65+0.1
-        parts.push(leaf(p,[p[0]+Math.cos(a+side*1.2)*w,p[1]+0.08,p[2]+Math.sin(a+side*1.2)*w],0.11,'#83A264'))
-      }
-    }
-  }
-  return join(parts)
 }
 
 // 멀리 있는 나무용 간단한 모델: 같은 실루엣을 삼각형 몇백 개로
@@ -209,7 +188,7 @@ export function Forest() {
   const time=useMemo(()=>({value:0}),[])
   useFrame((_,dt)=>{time.value+=dt})
   const assets=useMemo(()=>{
-    const broad=broadleaf(), palms=palm(), ferns=fern(), bushes=shrubGeometry()
+    const broad=broadleaf(), palms=palm(), bushes=shrubGeometry()
     const broadFar=broadleafFar(), palmsFar=palmFar(), bushesFar=shrubFar()
     const bark=new THREE.MeshStandardMaterial({vertexColors:true,roughness:1})
     const green=new THREE.MeshStandardMaterial({vertexColors:true,side:THREE.DoubleSide,roughness:0.88})
@@ -219,19 +198,10 @@ export function Forest() {
         float phase = instanceMatrix[3].x * 0.1 + instanceMatrix[3].z * 0.16;
         transformed.x += sin(forestTime * 0.7 + phase + position.y * 0.3) * max(position.y - 5.0, 0.0) * 0.012;`)
     }
-    return {broad,palms,ferns,bushes,broadFar,palmsFar,bushesFar,bark,green}
+    return {broad,palms,bushes,broadFar,palmsFar,bushesFar,bark,green}
   },[time])
   const broad=useMemo(()=>TREES.filter(t=>t.c>0.18),[])
   const palms=useMemo(()=>TREES.filter(t=>t.c<=0.18),[])
-  const shrubs=useMemo(()=>{
-    const rnd=seeded(147),out=[]
-    for(let i=0;i<16000&&out.length<2100;i++) {
-      const x=(rnd()*2-1)*200,z=(rnd()*2-1)*200
-      if(!isOpenGround(x,z,4.6)||STORY_CLEARINGS.some(([cx,cz])=>Math.hypot(x-cx,z-cz)<4))continue
-      out.push({x,z,y:groundHeight(x,z),s:0.65+rnd()*1.1,c:rnd(),r:rnd()*6.28})
-    }
-    return out
-  },[])
   const bushes=useMemo(()=>{
     const rnd=seeded(74),out=TREES.filter((t,i)=>i%3===0).map(t=>({...t,s:1.2+t.c*0.8}))
     for(const d of DISTRICTS) {
@@ -244,14 +214,12 @@ export function Forest() {
     }
     return out
   },[])
-  useEffect(()=>()=>{for(const set of [assets.broad,assets.palms,assets.broadFar,assets.palmsFar])Object.values(set).forEach(g=>g.dispose());assets.ferns.dispose();assets.bushes.dispose();assets.bushesFar.dispose();assets.bark.dispose();assets.green.dispose()},[assets])
+  useEffect(()=>()=>{for(const set of [assets.broad,assets.palms,assets.broadFar,assets.palmsFar])Object.values(set).forEach(g=>g.dispose());assets.bushes.dispose();assets.bushesFar.dispose();assets.bark.dispose();assets.green.dispose()},[assets])
   return <group>
     <LodInstances items={broad} hi={assets.broad.wood} lo={assets.broadFar.wood} material={assets.bark} />
     <LodInstances items={broad} hi={assets.broad.foliage} lo={assets.broadFar.foliage} material={assets.green} />
     <LodInstances items={palms} hi={assets.palms.wood} lo={assets.palmsFar.wood} material={assets.bark} />
     <LodInstances items={palms} hi={assets.palms.foliage} lo={assets.palmsFar.foliage} material={assets.green} />
-    {/* 고사리는 작아서 가까이에서만 보인다 */}
-    <LodInstances items={shrubs} hi={assets.ferns} material={assets.green} shadows={false} near={55} />
     <LodInstances items={bushes} hi={assets.bushes} lo={assets.bushesFar} material={assets.green} shadows={false} near={60} far={170} />
   </group>
 }
