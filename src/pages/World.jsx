@@ -7,8 +7,11 @@ import Driver from '../world/Driver.jsx'
 import Minimap, { toMap } from '../world/Minimap.jsx'
 import { Xylo, Naty, CodexSilhouette, Person } from '../world/Characters.jsx'
 import {
-  Harmonia, FerrisWheel, RollerCoaster, Carousel, CubeVault, Signboard, MyRoomHouse, Shop, Lab, Storage, Safari, CaveMountain, Terrain,
+  Harmonia, FerrisWheel, RollerCoaster, Carousel, CubeVault, Signboard, MyRoomHouse, Shop, Lab, Storage, Safari, CaveMountain,
 } from '../world/Landmarks.jsx'
+import Terrain from '../world/Terrain.jsx'
+import { Outskirts } from '../world/Scenery.jsx'
+import { Balloons, Birds, Clouds, Glitter, PostFX, SkyDome } from '../world/Atmosphere.jsx'
 import { ALL_COLLIDERS, PLACES, ROADS, VAULT, WORLD_HALF } from '../world/layout.js'
 import ShopRestockMission from '../missions/ShopRestockMission.jsx'
 import SignMission from '../missions/SignMission.jsx'
@@ -41,6 +44,42 @@ const CODEX_POS = [-26.5, 0, 51.5] // 회전목마 오른편, 안내판 정리 �
 const SPAWNS = { myroom: [0, 54, Math.PI], cave: [44, -56, 0], plaza: [0, 22, 0], carousel: [-34, 63, Math.PI] }
 
 // 상호작용 지점: 각 장소의 입구 앞
+// 바깥쪽 명소: 둘러보기 대화만 있다
+const SCENIC = [
+  { id: 'lake', pos: [-83, 0, 72], radius: 6 },
+  { id: 'garden', pos: [-102, 0, -5], radius: 6 },
+  { id: 'windmill', pos: [106, 0, -27], radius: 6 },
+  { id: 'station', pos: [34, 0, 108], radius: 6 },
+  { id: 'observatory', pos: [-5, 0, -114], radius: 6 },
+  { id: 'camp', pos: [-99, 0, -97], radius: 6 },
+]
+const SCENIC_LINES = {
+  lake: () => [
+    { text: '(오리배 세 척이 호수 위를 느릿느릿 떠다닌다. 연꽃 사이로 물결이 반짝인다.)' },
+    { who: '제로', text: '하모니아 음악이 여기까지 들려! 벤치에 앉아서 쉬어 가도 좋겠다.' },
+  ],
+  garden: () => [
+    { text: '(분수 둘레로 여섯 가지 색 꽃밭이 피어 있다. 나비들이 꽃 사이를 날아다닌다.)' },
+    { who: '리코', text: '꽃밭 색이 무지개 순서랑 비슷해! 누가 규칙을 정해서 심었나 봐.' },
+  ],
+  windmill: () => [
+    { text: '(바람을 받은 풍차 날개가 천천히 돈다. 언덕 아래로 금빛 밀밭이 펼쳐진다.)' },
+    { who: '제로', text: '바람의 힘으로 돌아가는 거야. 이것도 에너지를 바꾸는 장치구나!' },
+  ],
+  station: () => [
+    { text: '(칙칙폭폭, 꼬마 기차가 역 둘레를 돌며 하얀 연기를 뿜는다.)' },
+    { who: '리코', text: '기차는 늘 같은 길을 반복해서 돌아. 꼭 반복문 같지 않아?' },
+  ],
+  observatory: () => [
+    { text: '(둥근 지붕 사이로 망원경이 하늘을 천천히 훑는다. 꼭대기에서 보랏빛 고리가 빛난다.)' },
+    { who: '제로', text: '밤이 되면 여기서 도로랜드 전체가 다 보인대!' },
+  ],
+  camp: () => [
+    { text: '(모닥불이 타닥타닥 타오르고, 텐트 주변으로 반딧불이 떠다닌다.)' },
+    { who: '리코', text: '불멍 하기 딱 좋은 곳이네. 잠깐 쉬었다 가자.' },
+  ],
+}
+
 const SPOTS = [
   { id: 'myroom', pos: [0, 0, 65], radius: 5 },
   { id: 'xylo', pos: XYLO_POS, radius: 5 },
@@ -56,6 +95,7 @@ const SPOTS = [
   { id: 'storage', pos: [-74, 0, 19], radius: 5 },
   { id: 'cave', pos: [44, 0, -63], radius: 5 },
   { id: 'naty', pos: NATY_POS, radius: 4 },
+  ...SCENIC,
 ]
 
 // 챕터 3 끝: 상점 재개장 뒤 회전목마 옆 오래된 구조물이 열린다
@@ -294,6 +334,7 @@ export default function World() {
       { text: '(푸른빛의 작은 무언가가 반짝인다. 사람들은 파란 반딧불이라고 부른다.)' },
       { who: '제로', text: '저건… 네이티? 앗, 휙 사라졌어!' },
     ],
+    ...SCENIC_LINES,
   }
 
   const interact = (id) => {
@@ -363,6 +404,7 @@ export default function World() {
     storage: p.voidBuilt && !p.codexMet ? '오래된 창고 · 보이드가 가리킨 곳' : '오래된 창고',
     cave: caveOpen ? '동굴 들어가기' : '동굴',
     naty: '반짝이는 무언가',
+    ...Object.fromEntries(SCENIC.map((s) => [s.id, `${PLACES[s.id].name} 둘러보기`])),
     task: task ? (taskCleared ? `${task.npc.label}와 이야기하기` : `${task.npc.label} · 과제 「${task.title}」`) : '',
   }
 
@@ -374,6 +416,7 @@ export default function World() {
     ...(p.shopReopened ? ['carousel'] : []),
     ...(p.voidStarted ? ['lab'] : []),
     ...(p.voidBuilt ? ['storage'] : []),
+    ...SCENIC.map((s) => s.id),
   ]
   const markers = [
     ...partIds.map((id) => ({ x: PART_SPOTS[id].pos[0], z: PART_SPOTS[id].pos[2] })),
@@ -382,17 +425,24 @@ export default function World() {
   ]
   const promptFor = (id) => (faults.includes(id) ? `${BREAKABLE[id].name} 고장 수리하기` : PROMPTS[id])
   const dusk = p.signsDone && !p.letterSeen
-  const sky = stopped ? '#C7CEDB' : dusk ? '#F2C9A0' : '#BFE3FF'
+  const sky = stopped ? '#C7CEDB' : dusk ? '#F6D3B0' : '#D8EEFF'
+  const skyTop = stopped ? '#8E99AE' : dusk ? '#E58A6A' : '#5FB2F2'
 
   return (
     <div className="room-page world">
-      <Canvas shadows camera={{ position: [spawn[0], 8, spawn[1] - Math.cos(spawn[2]) * 12], fov: 55, far: 400 }} dpr={[1, 1.75]}>
+      <Canvas shadows="soft" camera={{ position: [spawn[0], 8, spawn[1] - Math.cos(spawn[2]) * 12], fov: 55, far: 700 }} dpr={[1, 1.75]}>
         <color attach="background" args={[sky]} />
-        <fog attach="fog" args={[sky, 70, 190]} />
-        <hemisphereLight args={['#ffffff', '#7DB767', 0.75]} />
+        <fog attach="fog" args={[sky, 110, 330]} />
+        <SkyDome top={skyTop} horizon={sky} />
+        <hemisphereLight args={[stopped ? '#D6DCE8' : dusk ? '#FFE2C4' : '#DDF0FF', '#7DB767', 0.8]} />
         <ambientLight intensity={stopped ? 0.35 : 0.5} />
         <ViewControls view={view} />
-        <Terrain roads={ROAD_SEGMENTS} half={WORLD_HALF} />
+        <Terrain roads={ROAD_SEGMENTS} half={WORLD_HALF} night={stopped || dusk} />
+        <Outskirts />
+        <Clouds dim={stopped} />
+        {!stopped && <Birds />}
+        {!stopped && <Balloons />}
+        {!stopped && <Glitter position={[0, 8, 0]} />}
         <MyRoomHouse />
         <Harmonia stopped={stopped} gateOpen={p.plazaOpen} />
         <Signboard stopped={stopped || faults.includes('sign')} />
@@ -429,6 +479,7 @@ export default function World() {
           onMove={onMove}
           vehicle={currentVehicle(p)}
         />
+        <PostFX bloom={stopped ? 0.35 : 0.6} />
       </Canvas>
 
       <div className="hud hud-top">

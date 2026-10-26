@@ -16,6 +16,7 @@ import DialogBox from '../components/DialogBox.jsx'
 import RoomHud from '../components/RoomHud.jsx'
 import { useKeyboard } from '../myroom/useKeyboard.js'
 import { useProximity } from '../game/useProximity.js'
+import { PostFX } from '../world/Atmosphere.jsx'
 import { useStore } from '../store.jsx'
 import { hasLicense, storyDone } from '../game/progress.js'
 import License, { LICENSE_POS } from '../myroom/License.jsx'
@@ -169,7 +170,7 @@ export default function MyRoom() {
 
   return (
     <div className="room-page">
-      <Canvas shadows camera={{ position: [start.x, start.y, start.z], fov: 50 }} dpr={[1, 2]}>
+      <Canvas shadows="soft" camera={{ position: [start.x, start.y, start.z], fov: 50 }} dpr={[1, 2]}>
         <color attach="background" args={['#1b1410']} />
         <ambientLight intensity={0.75} />
         <hemisphereLight args={['#fff4e6', '#5a3a22', 0.5]} />
@@ -204,6 +205,7 @@ export default function MyRoom() {
           seated={panel === 'computer'}
           face={panel === 'computer' ? -Math.PI / 2 : null}
         />
+        <PostFX bloom={0.5} />
       </Canvas>
 
       <RoomHud title={`${user.name}의 마이룸`} onChat={setBubble} />

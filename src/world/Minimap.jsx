@@ -1,5 +1,5 @@
 import { forwardRef } from 'react'
-import { PLACES, ROADS, WORLD_HALF } from './layout.js'
+import { LAKE, PLACES, RIVER, ROADS, WORLD_HALF } from './layout.js'
 
 const SIZE = 180
 const toMap = (v) => ((v + WORLD_HALF) / (WORLD_HALF * 2)) * SIZE
@@ -10,7 +10,14 @@ const Minimap = forwardRef(function Minimap({ openIds, markers = [] }, carRef) {
   return (
     <svg className="minimap" viewBox={`0 0 ${SIZE} ${SIZE}`} role="img" aria-label="도로랜드 미니맵">
       <rect width={SIZE} height={SIZE} rx="14" fill="#BFE2A8" />
-      <rect x={toMap(67)} y={toMap(-40)} width={toMap(85) - toMap(67)} height={toMap(70) - toMap(-40)} fill="#8FD0EC" />
+      <rect
+        x={toMap(RIVER.x - RIVER.width / 2)}
+        y={toMap(RIVER.z - RIVER.length / 2)}
+        width={toMap(RIVER.width) - toMap(0)}
+        height={toMap(RIVER.length) - toMap(0)}
+        fill="#8FD0EC"
+      />
+      <circle cx={toMap(LAKE[0])} cy={toMap(LAKE[1])} r={toMap(LAKE[2]) - toMap(0)} fill="#8FD0EC" />
       {ROADS.map(([a, b]) => (
         <line
           key={a + b}
@@ -19,7 +26,7 @@ const Minimap = forwardRef(function Minimap({ openIds, markers = [] }, carRef) {
           x2={toMap(PLACES[b].pos[0])}
           y2={toMap(PLACES[b].pos[2])}
           stroke="#F1DDB5"
-          strokeWidth="4"
+          strokeWidth="3"
           strokeLinecap="round"
         />
       ))}

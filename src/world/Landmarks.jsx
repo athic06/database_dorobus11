@@ -2,11 +2,11 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import * as THREE from 'three'
-import { PLACES, TREES, VAULT } from './layout.js'
+import { PLACES, VAULT } from './layout.js'
 
 const at = (id) => PLACES[id].pos
 
-function Label({ y, children, locked, distance = 40 }) {
+export function Label({ y, children, locked, distance = 40 }) {
   return (
     <Html position={[0, y, 0]} center zIndexRange={[1, 0]} distanceFactor={distance}>
       <div className={`world-label${locked ? ' locked' : ''}`}>{children}</div>
@@ -684,68 +684,3 @@ export function CaveMountain({ open }) {
   )
 }
 
-/* ---------------- 지형: 잔디 · 길 · 나무 · 강 · 외곽 언덕 ---------------- */
-export function Terrain({ roads, half }) {
-  const trunks = useRef()
-  const crowns = useRef()
-  const trees = TREES
-
-  useEffect(() => {
-    const m = new THREE.Matrix4()
-    const col = new THREE.Color()
-    trees.forEach((t, i) => {
-      m.compose(new THREE.Vector3(t.x, 1.2 * t.s, t.z), new THREE.Quaternion(), new THREE.Vector3(t.s, t.s, t.s))
-      trunks.current.setMatrixAt(i, m)
-      m.compose(new THREE.Vector3(t.x, 3.4 * t.s, t.z), new THREE.Quaternion(), new THREE.Vector3(t.s, t.s, t.s))
-      crowns.current.setMatrixAt(i, m)
-      crowns.current.setColorAt(i, col.set(t.c > 0.5 ? '#6DBB5E' : '#57A64F'))
-    })
-    trunks.current.instanceMatrix.needsUpdate = true
-    crowns.current.instanceMatrix.needsUpdate = true
-    crowns.current.instanceColor.needsUpdate = true
-  }, [trees])
-
-  return (
-    <group>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[half * 2 + 60, half * 2 + 60]} />
-        <meshStandardMaterial color="#A6D08A" />
-      </mesh>
-      {roads.map(([a, b], i) => {
-        const dx = b[0] - a[0]
-        const dz = b[2] - a[2]
-        const len = Math.hypot(dx, dz)
-        return (
-          <mesh key={i} position={[(a[0] + b[0]) / 2, 0.025, (a[2] + b[2]) / 2]} rotation={[-Math.PI / 2, 0, -Math.atan2(dz, dx)]} receiveShadow>
-            <planeGeometry args={[len, 5]} />
-            <meshStandardMaterial color="#E9D3A8" />
-          </mesh>
-        )
-      })}
-      {/* 강 */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[76, 0.03, 15]}>
-        <planeGeometry args={[18, 110]} />
-        <meshStandardMaterial color="#7FC8E8" emissive="#3FA9D6" emissiveIntensity={0.1} />
-      </mesh>
-      <instancedMesh ref={trunks} args={[null, null, trees.length]} castShadow>
-        <cylinderGeometry args={[0.25, 0.35, 2.4, 6]} />
-        <meshStandardMaterial color="#8B6A4A" />
-      </instancedMesh>
-      <instancedMesh ref={crowns} args={[null, null, trees.length]} castShadow>
-        <dodecahedronGeometry args={[1.8, 0]} />
-        <meshStandardMaterial flatShading />
-      </instancedMesh>
-      {/* 외곽 언덕 */}
-      {Array.from({ length: 28 }).map((_, i) => {
-        const a = (i / 28) * Math.PI * 2
-        const r = half + 14
-        return (
-          <mesh key={i} position={[Math.cos(a) * r, 0, Math.sin(a) * r]} scale={[1, 0.45, 1]}>
-            <sphereGeometry args={[18, 16, 12]} />
-            <meshStandardMaterial color={i % 2 ? '#8CC274' : '#7DB767'} flatShading />
-          </mesh>
-        )
-      })}
-    </group>
-  )
-}

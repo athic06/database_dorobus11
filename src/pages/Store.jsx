@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { PostFX } from '../world/Atmosphere.jsx'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import { useNavigate } from 'react-router-dom'
@@ -160,7 +161,7 @@ export default function Store() {
   const start = posRef.current.clone().add(viewOffset(view.current))
   return (
     <div className="room-page">
-      <Canvas shadows camera={{ position: [start.x, start.y, start.z], fov: 50 }} dpr={[1, 2]}>
+      <Canvas shadows="soft" camera={{ position: [start.x, start.y, start.z], fov: 50 }} dpr={[1, 2]}>
         <color attach="background" args={['#DDEEE9']} />
         <ambientLight intensity={0.85} />
         <hemisphereLight args={['#ffffff', '#c9a982', 0.5]} />
@@ -180,6 +181,7 @@ export default function Store() {
           bounds={{ minX: -HALF_X + 0.7, maxX: HALF_X - 0.7, minZ: -HALF_Z + 0.7, maxZ: HALF_Z - 0.7 }}
           colliders={colliders}
         />
+        <PostFX bloom={0.4} />
       </Canvas>
 
       <RoomHud title="도로랜드 가구점" backTo="/myroom" backLabel="← 마이룸" onChat={setBubble} />

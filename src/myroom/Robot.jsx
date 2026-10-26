@@ -5,6 +5,8 @@ import * as THREE from 'three'
 import { ROOM_HALF } from './Room.jsx'
 
 const SPEED = 4.2
+const JUMP_V = 6.2 // 스페이스 점프 처음 속도
+const GRAVITY = 19
 const LIMIT = ROOM_HALF - 0.7
 const ROOM_BOUNDS = { minX: -LIMIT, maxX: LIMIT, minZ: -LIMIT, maxZ: LIMIT }
 const NO_KEYS = { forward: false, back: false, left: false, right: false }
@@ -45,8 +47,21 @@ export default function Robot({ posRef, targetRef, keys, view, name, bubble, onM
     return () => delete window.__robot
   }, [posRef])
 
+  const jump = useRef({ y: 0, v: 0 })
+
   useFrame((state, dt) => {
     const k = frozen ? NO_KEYS : keys.current
+    // 스페이스: 땅에 있을 때만 뛰어오른다
+    const j = jump.current
+    if (k.jump && j.y === 0 && !seated) j.v = JUMP_V
+    if (j.v || j.y) {
+      j.v -= GRAVITY * Math.min(dt, 0.05)
+      j.y += j.v * Math.min(dt, 0.05)
+      if (j.y <= 0) {
+        j.y = 0
+        j.v = 0
+      }
+    }
     if (frozen) targetRef.current = null
     const sx = (k.right ? 1 : 0) - (k.left ? 1 : 0)
     const sy = (k.forward ? 1 : 0) - (k.back ? 1 : 0)
@@ -94,9 +109,11 @@ export default function Robot({ posRef, targetRef, keys, view, name, bubble, onM
     }
     group.current.position.copy(posRef.current)
     if (face !== null) group.current.rotation.y = lerpAngle(group.current.rotation.y, face, 1 - Math.pow(0.001, dt))
-    group.current.position.y = seated ? 0.45 : 0
+    group.current.position.y = (seated ? 0.45 : 0) + j.y
     const t = state.clock.elapsedTime
-    body.current.position.y = moving ? Math.abs(Math.sin(t * 12)) * 0.08 : Math.sin(t * 2) * 0.02
+    body.current.position.y = j.y ? 0 : moving ? Math.abs(Math.sin(t * 12)) * 0.08 : Math.sin(t * 2) * 0.02
+    // 공중에서는 몸이 살짝 늘어난다
+    body.current.scale.y = THREE.MathUtils.lerp(body.current.scale.y, j.y ? 1 + Math.min(Math.abs(j.v) * 0.015, 0.1) : 1, 0.3)
 
     camGoal.copy(posRef.current).add(viewOffset(view.current, look))
     camera.position.lerp(camGoal, 1 - Math.pow(0.0005, dt))

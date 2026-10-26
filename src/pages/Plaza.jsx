@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { Html } from '@react-three/drei'
+import { Html, Stars } from '@react-three/drei'
 import { QuestPanel } from '../components/Routine.jsx'
 import { storyDone } from '../game/progress.js'
 import { useNavigate } from 'react-router-dom'
@@ -20,6 +20,7 @@ import { parkOpen } from '../game/park.js'
 import { useKeyboard } from '../myroom/useKeyboard.js'
 import { useProximity } from '../game/useProximity.js'
 import { FACILITY_GOAL } from '../game/progress.js'
+import { PostFX, Glitter } from '../world/Atmosphere.jsx'
 import { useStore } from '../store.jsx'
 
 const INTRO = [
@@ -148,7 +149,7 @@ export default function Plaza() {
 
   return (
     <div className="room-page">
-      <Canvas shadows camera={{ position: [start.x, start.y, start.z], fov: 50 }} dpr={[1, 2]}>
+      <Canvas shadows="soft" camera={{ position: [start.x, start.y, start.z], fov: 50 }} dpr={[1, 2]}>
         <color attach="background" args={[sky]} />
         <fog attach="fog" args={[sky, 30, 70]} />
         <hemisphereLight args={['#c9d4ff', '#4a5a3a', lit ? 0.45 : 0.6]} />
@@ -169,6 +170,9 @@ export default function Plaza() {
           colliders={[[0, 0, 4.3]]}
           frozen={busy}
         />
+        <Stars radius={90} depth={30} count={1500} factor={3} fade speed={0.6} />
+        {lit && <Glitter position={[0, 6, 0]} scale={[26, 10, 26]} count={70} />}
+        <PostFX bloom={lit ? 0.5 : 0.35} />
       </Canvas>
 
       <RoomHud title={<>하모니아 광장 <small className="space-role">친구들이 모이는 공연·시설 광장 · 일일 퀘스트</small></>} backTo="/world" backLabel="← 도로랜드" onChat={setBubble} />

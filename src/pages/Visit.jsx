@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { PostFX } from '../world/Atmosphere.jsx'
 import { Canvas } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -121,7 +122,7 @@ export default function Visit() {
   const start = posRef.current.clone().add(viewOffset(view.current))
   return (
     <div className="room-page">
-      <Canvas shadows camera={{ position: [start.x, start.y, start.z], fov: 50 }} dpr={[1, 2]}>
+      <Canvas shadows="soft" camera={{ position: [start.x, start.y, start.z], fov: 50 }} dpr={[1, 2]}>
         <color attach="background" args={['#1b1410']} />
         <ambientLight intensity={0.75} />
         <hemisphereLight args={['#fff4e6', '#5a3a22', 0.5]} />
@@ -144,6 +145,7 @@ export default function Visit() {
           )
         })}
         <Robot posRef={posRef} targetRef={targetRef} keys={keys} view={view} name={user.name} onMove={onMove} />
+        <PostFX bloom={0.5} />
       </Canvas>
 
       <RoomHud title={`${room.name}의 방`} backTo="/play" backLabel="← 미니게임" />

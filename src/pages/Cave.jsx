@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { PostFX } from '../world/Atmosphere.jsx'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useNavigate } from 'react-router-dom'
 import * as THREE from 'three'
@@ -105,7 +106,7 @@ export default function Cave() {
 
   return (
     <div className="room-page">
-      <Canvas shadows camera={{ position: [start.x, start.y, start.z], fov: 50 }} dpr={[1, 2]}>
+      <Canvas shadows="soft" camera={{ position: [start.x, start.y, start.z], fov: 50 }} dpr={[1, 2]}>
         <color attach="background" args={['#0b0a0f']} />
         <fog attach="fog" args={['#0b0a0f', 14, 34]} />
         <ambientLight intensity={0.28} />
@@ -125,6 +126,7 @@ export default function Cave() {
           bounds={CAVE_BOUNDS}
           frozen={busy}
         />
+        <PostFX bloom={1.1} />
       </Canvas>
 
       <RoomHud title="동굴" backTo="/world" backLabel="← 도로랜드" onChat={setBubble} />

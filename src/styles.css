@@ -140,9 +140,9 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 
 /* open world */
 .hud-minimap { top: 64px; right: 16px; }
-.minimap { display: block; width: 180px; height: 180px; border-radius: 14px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25); }
-.mm-name { font-size: 7px; font-weight: 700; fill: #2b3140; }
-.world-label { padding: 4px 10px; border-radius: 8px; background: rgba(20, 24, 36, 0.8); color: #fff; font-size: 15px; font-weight: 800; white-space: nowrap; user-select: none; }
+.minimap { display: block; width: 210px; height: 210px; border-radius: 16px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25), inset 0 0 0 2px rgba(255, 255, 255, 0.6); }
+.mm-name { font-size: 6px; font-weight: 700; fill: #2b3140; }
+.world-label { padding: 5px 12px; border-radius: 999px; background: linear-gradient(180deg, rgba(36, 44, 66, 0.86), rgba(18, 22, 34, 0.86)); border: 1px solid rgba(255, 255, 255, 0.25); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25); color: #fff; font-size: 15px; font-weight: 800; letter-spacing: -0.2px; white-space: nowrap; user-select: none; }
 .world-label.locked::after { content: ' 🔒'; }
 .nametag.npc { background: #3b6d2a; }
 @media (max-width: 640px) {
@@ -834,3 +834,28 @@ body:has(.pc) .demo-dock { display: none; }
 .cr-head .grow, .cr-tabs .grow { flex: 1; }
 .cr-list-note { margin: 0; padding: 10px 14px; border-bottom: 1px solid var(--line); background: #f6f8fc; color: #6a7385; font-size: 12px; }
 .k-concept { background: #f3edff; color: #6a4fc9; }
+
+/* ---------------- 화면 전환과 움직임 다듬기 ---------------- */
+@keyframes page-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes scene-in { from { opacity: 0; filter: blur(6px) brightness(1.4); } to { opacity: 1; filter: none; } }
+@keyframes dialog-in { from { opacity: 0; transform: translateX(-50%) translateY(16px) scale(0.98); } to { opacity: 1; transform: translateX(-50%); } }
+@keyframes prompt-in { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%); } }
+@keyframes prompt-glow { 50% { box-shadow: 0 6px 26px rgba(47, 107, 255, 0.75), 0 0 0 4px rgba(47, 107, 255, 0.18); } }
+@keyframes pop-in { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: none; } }
+.page main { animation: page-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.room-page canvas { animation: scene-in 0.9s ease both; }
+.dialog { animation: dialog-in 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.prompt { animation: prompt-in 0.25s ease both, prompt-glow 1.8s ease-in-out 0.25s infinite; }
+.hud .back, .license-btn, .btn-primary, .class-enter, .cr-btn { transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease; }
+.hud .back:hover, .license-btn:hover, .class-enter:hover, .cr-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18); }
+.btn-primary:hover { filter: brightness(1.08); transform: translateY(-1px); box-shadow: 0 8px 18px rgba(47, 123, 255, 0.35); }
+.btn-primary:active, .license-btn:active, .class-enter:active { transform: translateY(0) scale(0.98); }
+.card, .class-card { transition: transform 0.2s ease, box-shadow 0.25s ease; }
+.class-card:hover { transform: translateY(-3px); box-shadow: 0 14px 30px rgba(24, 39, 75, 0.12); }
+.classroom, .park-panel, .mission { animation: pop-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .page main, .room-page canvas, .dialog, .prompt, .classroom, .park-panel, .mission { animation: none; }
+}
+.dialog-rest { visibility: hidden; }
+.dialog-next { transition: opacity 0.2s ease; }
+.dialog-next.typing { opacity: 0.35; }
