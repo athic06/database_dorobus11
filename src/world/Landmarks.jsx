@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 import { PLACES, VAULT } from './layout.js'
+import { Animal } from './Animals.jsx'
 
 const at = (id) => PLACES[id].pos
 
@@ -391,84 +392,6 @@ export function Storage() {
 }
 
 /* ---------------- 사파리: 울타리와 동물들 ---------------- */
-function Giraffe(props) {
-  return (
-    <group {...props}>
-      <mesh position={[0, 2, 0]} castShadow>
-        <boxGeometry args={[1, 1, 2]} />
-        <meshStandardMaterial color="#E8B04B" />
-      </mesh>
-      <mesh position={[0, 3.6, 0.8]} rotation={[0.3, 0, 0]} castShadow>
-        <cylinderGeometry args={[0.2, 0.25, 2.6, 8]} />
-        <meshStandardMaterial color="#E8B04B" />
-      </mesh>
-      <mesh position={[0, 4.9, 1.2]}>
-        <boxGeometry args={[0.45, 0.45, 0.8]} />
-        <meshStandardMaterial color="#E8B04B" />
-      </mesh>
-      {[[-0.35, 0.7], [0.35, 0.7], [-0.35, -0.7], [0.35, -0.7]].map(([x, z]) => (
-        <mesh key={`${x}${z}`} position={[x, 0.75, z]}>
-          <cylinderGeometry args={[0.1, 0.1, 1.5, 6]} />
-          <meshStandardMaterial color="#C98A2E" />
-        </mesh>
-      ))}
-    </group>
-  )
-}
-function Elephant(props) {
-  return (
-    <group {...props}>
-      <mesh position={[0, 1.6, 0]} castShadow>
-        <boxGeometry args={[1.8, 1.6, 2.6]} />
-        <meshStandardMaterial color="#9AA3B2" />
-      </mesh>
-      <mesh position={[0, 2, 1.6]}>
-        <boxGeometry args={[1.3, 1.2, 0.9]} />
-        <meshStandardMaterial color="#9AA3B2" />
-      </mesh>
-      <mesh position={[0, 1.2, 2.15]} rotation={[0.3, 0, 0]}>
-        <cylinderGeometry args={[0.15, 0.2, 1.4, 8]} />
-        <meshStandardMaterial color="#8892A2" />
-      </mesh>
-      {[-0.95, 0.95].map((x) => (
-        <mesh key={x} position={[x, 2.1, 1.5]}>
-          <boxGeometry args={[0.12, 1, 0.9]} />
-          <meshStandardMaterial color="#8892A2" />
-        </mesh>
-      ))}
-      {[[-0.55, 0.9], [0.55, 0.9], [-0.55, -0.9], [0.55, -0.9]].map(([x, z]) => (
-        <mesh key={`${x}${z}`} position={[x, 0.45, z]}>
-          <cylinderGeometry args={[0.28, 0.28, 0.9, 8]} />
-          <meshStandardMaterial color="#8892A2" />
-        </mesh>
-      ))}
-    </group>
-  )
-}
-function Lion(props) {
-  return (
-    <group {...props}>
-      <mesh position={[0, 0.9, 0]} castShadow>
-        <boxGeometry args={[0.9, 0.8, 1.6]} />
-        <meshStandardMaterial color="#E3B36B" />
-      </mesh>
-      <mesh position={[0, 1.3, 0.9]}>
-        <sphereGeometry args={[0.65, 12, 12]} />
-        <meshStandardMaterial color="#B5652F" />
-      </mesh>
-      <mesh position={[0, 1.25, 1.2]}>
-        <sphereGeometry args={[0.38, 12, 12]} />
-        <meshStandardMaterial color="#E3B36B" />
-      </mesh>
-      {[[-0.3, 0.6], [0.3, 0.6], [-0.3, -0.6], [0.3, -0.6]].map(([x, z]) => (
-        <mesh key={`${x}${z}`} position={[x, 0.3, z]}>
-          <cylinderGeometry args={[0.1, 0.1, 0.6, 6]} />
-          <meshStandardMaterial color="#C99A5B" />
-        </mesh>
-      ))}
-    </group>
-  )
-}
 export function Safari() {
   const [cx, , cz] = at('safari')
   const posts = []
@@ -489,11 +412,12 @@ export function Safari() {
           <meshStandardMaterial color="#8B6A4A" />
         </mesh>
       ))}
-      <Giraffe position={[-8, 0, -6]} rotation={[0, 0.6, 0]} />
-      <Giraffe position={[-11, 0, -2]} rotation={[0, 1.2, 0]} />
-      <Elephant position={[7, 0, -8]} rotation={[0, -0.8, 0]} />
-      <Lion position={[4, 0, 5]} rotation={[0, 2.4, 0]} />
-      <Lion position={[9, 0, 7]} rotation={[0, -2.6, 0]} />
+      <Animal kind="giraffe" position={[-8, 0, -6]} rotation={0.6} />
+      <Animal kind="giraffe" position={[-11, 0, -2]} rotation={1.2} scale={0.85} />
+      <Animal kind="elephant" position={[7, 0, -8]} rotation={-0.8} />
+      <Animal kind="elephant" position={[11, 0, -4]} rotation={-1.6} scale={0.6} />
+      <Animal kind="lion" position={[4, 0, 5]} rotation={2.4} />
+      <Animal kind="lion" position={[9, 0, 7]} rotation={-2.6} scale={0.9} />
       <Label y={6}>사파리</Label>
     </group>
   )

@@ -2,6 +2,7 @@ import { useLayoutEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Label } from './Landmarks.jsx'
+import { Animal } from './Animals.jsx'
 import MergeStatic from './MergeStatic.jsx'
 import { Glitter } from './Atmosphere.jsx'
 import { Water } from './Terrain.jsx'
@@ -39,36 +40,31 @@ function Many({ items, children, castShadow, receiveShadow, ...mat }) {
 }
 
 /* ---------------- 호수 공원: 선착장, 오리배, 벤치 ---------------- */
-function SwanBoat({ radius, speed, phase, color }) {
+// 원을 따라 헤엄치는 오리 한 마리. lag만큼 앞 오리 뒤를 따라간다.
+function SwimmingDuck({ radius, speed, phase, lag = 0, scale = 1 }) {
   const ref = useRef()
   useFrame(({ clock }) => {
-    const a = clock.elapsedTime * speed + phase
-    ref.current.position.set(Math.cos(a) * radius, 0.2 + Math.sin(clock.elapsedTime * 2 + phase) * 0.06, Math.sin(a) * radius)
+    const t = clock.elapsedTime
+    const a = t * speed + phase - Math.sign(speed) * lag
+    ref.current.position.set(Math.cos(a) * radius, 0.02 + Math.sin(t * 2.4 + phase + lag * 9) * 0.03, Math.sin(a) * radius)
     ref.current.rotation.y = -a - (speed > 0 ? 0 : Math.PI)
   })
   return (
     <group ref={ref} userData={{ dynamic: true }}>
-      <mesh castShadow>
-        <boxGeometry args={[1.6, 0.5, 2.6]} />
-        <Std color="#FFFFFF" />
-      </mesh>
-      <mesh position={[0, 1, 1.1]} rotation={[0.4, 0, 0]} castShadow>
-        <cylinderGeometry args={[0.18, 0.24, 1.6, 8]} />
-        <Std color="#FFFFFF" />
-      </mesh>
-      <mesh position={[0, 1.75, 1.45]}>
-        <sphereGeometry args={[0.32, 12, 10]} />
-        <Std color="#FFFFFF" />
-      </mesh>
-      <mesh position={[0, 1.7, 1.8]} rotation={[Math.PI / 2, 0, 0]}>
-        <coneGeometry args={[0.1, 0.35, 6]} />
-        <Std color="#FF9E3D" />
-      </mesh>
-      <mesh position={[0, 0.5, -0.4]}>
-        <boxGeometry args={[1.3, 0.12, 1.2]} />
-        <Std color={color} />
-      </mesh>
+      <Animal kind="duck" scale={scale} />
     </group>
+  )
+}
+
+// 엄마 오리 뒤로 새끼 오리들이 줄지어 따라온다
+function DuckFamily({ radius, speed, phase, chicks = 3 }) {
+  return (
+    <>
+      <SwimmingDuck radius={radius} speed={speed} phase={phase} />
+      {Array.from({ length: chicks }, (_, i) => (
+        <SwimmingDuck key={i} radius={radius} speed={speed} phase={phase} lag={(1.3 + i * 0.85) / radius} scale={0.5} />
+      ))}
+    </>
   )
 }
 
@@ -92,9 +88,9 @@ export function LakePark() {
           )))}
         </group>
       </group>
-      <SwanBoat radius={9} speed={0.12} phase={0} color="#FF8FB1" />
-      <SwanBoat radius={6} speed={-0.16} phase={2} color="#7FC8FF" />
-      <SwanBoat radius={11.5} speed={0.09} phase={4} color="#FFD45E" />
+      <DuckFamily radius={9} speed={0.12} phase={0} chicks={4} />
+      <DuckFamily radius={5.5} speed={-0.16} phase={2} chicks={2} />
+      <SwimmingDuck radius={12} speed={0.09} phase={4} />
       {/* 연잎 */}
       {[[-8, -6], [-10, 3], [4, -11], [-3, 10], [10, 6]].map(([lx, lz], i) => (
         <group key={i} position={[lx, 0.07, lz]}>

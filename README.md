@@ -36,6 +36,7 @@ npm run dev
 | `src/game/courses.js` | 도로버스 수업 목록(레벨 1~8)과 수업마다 라이브러리에서 고른 과제(ASSIGN). 수업이 바뀌면 이 파일만 고친다 |
 | `src/store.jsx` | 계정별 저장 (브라우저 localStorage) |
 | `public/models/forest` | 숲 3D 모델과 텍스처: Quaternius Stylized Nature MegaKit (CC0, 라이선스 파일 함께 둠). 원본에서 도형만 GLB로 뽑고 텍스처는 줄여서 공용으로 씀 |
+| `public/models/animals` | 사파리 동물, 호수 오리 모델 (Poly Pizza, CC BY 3.0). 작가와 링크는 같은 폴더 CREDITS.txt |
 | `server/` | 미니PC 설정 (Caddy, systemd, DuckDNS, 자동 배포) |
 
 확인용 페이지: `#/dev/characters`(캐릭터 3D · 배포 사이트에서도 열림), `#/dev/mission/lights`(미션 창 · 개발 서버만), `#/dev/portraits`(대화 초상화 · 개발 서버만).
