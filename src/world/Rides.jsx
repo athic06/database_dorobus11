@@ -6,6 +6,7 @@ import * as THREE from 'three'
 import { FERRIS_HILL, PLACES } from './layout.js'
 import FerrisHill from './FerrisHill.jsx'
 import { Label } from './Landmarks.jsx'
+import MergeStatic from './MergeStatic.jsx'
 
 const TAU = Math.PI * 2
 const CAR_P = new THREE.Vector3() // 롤러코스터 차량 위치 계산용 (매 프레임 새로 만들지 않게)
@@ -83,7 +84,8 @@ export function FerrisWheel({ stopped }) {
     <Parts items={structure.legs} shape="cylinder" color={TEAL} />
     <Parts items={[-1, 1].flatMap(x => [-1, 1].map(z => ({ pos: [x * 3.1, 0.28, z * 2.55], scale: [1.1, 0.56, 1.1] })))} color={IVORY} />
     <Parts items={[beam([0, height, -2], [0, height, 2], 0.52)]} shape="cylinder" color={GOLD} />
-    <group position={[0, height, 0]} ref={wheel}>
+    <group position={[0, height, 0]} ref={wheel} userData={{ dynamic: true }}>
+      <MergeStatic>
       {[-1.02, 1.02].map(z => <group key={z}>
         <Ring radius={radius} tube={0.16} position={[0, 0, z]} color={IVORY} />
         <Ring radius={radius - 0.45} tube={0.06} position={[0, 0, z]} />
@@ -94,7 +96,7 @@ export function FerrisWheel({ stopped }) {
       <Parts items={structure.bulbs} shape="sphere" color="#FFE4AE" glow={stopped ? 0 : 2} />
       {Array.from({ length: count }, (_, i) => {
         const a = i * TAU / count, c = [TEAL, '#C57160', '#4D7894', GOLD][i % 4]
-        return <group key={i} position={[Math.cos(a) * radius, Math.sin(a) * radius, 0]} ref={el => cabins.current[i] = el}>
+        return <group key={i} position={[Math.cos(a) * radius, Math.sin(a) * radius, 0]} ref={el => cabins.current[i] = el} userData={{ dynamic: true }}><MergeStatic>
           <Parts items={[beam([0, 0, 0], [0, -0.7, 0], 0.065)]} shape="cylinder" color={GOLD} />
           <group position={[0, -1.55, 0]}>
             <Drum radius={0.84} height={0.65} position={[0, -0.4, 0]} color={c} />
@@ -104,8 +106,9 @@ export function FerrisWheel({ stopped }) {
             <Parts items={Array.from({ length: 6 }, (_, j) => { const b = j * TAU / 6; return beam([Math.cos(b) * 0.78, -0.12, Math.sin(b) * 0.78], [Math.cos(b) * 0.78, 0.61, Math.sin(b) * 0.78], 0.035) })} shape="cylinder" color={IVORY} />
             <Ring radius={0.85} tube={0.035} position={[0, -0.7, 0]} rotation={[Math.PI / 2, 0, 0]} />
           </group>
-        </group>
+        </MergeStatic></group>
       })}
+      </MergeStatic>
     </group>
     <Label y={26}>관람차 · 태양광 발전</Label>
   </group>
@@ -151,7 +154,7 @@ export function RollerCoaster({ stopped }) {
     <Parts items={track.ties} shape="cylinder" color={GOLD} />
     <Parts items={track.supports} shape="cylinder" color={IVORY} />
     <Parts items={track.feet} color="#B7B9B1" />
-    {[0, 1, 2].map(i => <group key={i} ref={el => cars.current[i] = el}>
+    {[0, 1, 2].map(i => <group key={i} ref={el => cars.current[i] = el} userData={{ dynamic: true }}>
       <Box size={[1.3, 0.36, 1.8]} color={i === 0 ? '#C57160' : TEAL} />
       <Orb position={[0, 0.1, 0.77]} scale={[0.65, 0.38, 0.28]} color={i === 0 ? '#C57160' : TEAL} />
       {[-0.57, 0.57].map(x => <Box key={x} position={[x, 0.36, 0]} size={[0.16, 0.5, 1.55]} color={IVORY} />)}
@@ -215,12 +218,12 @@ export function Carousel({ stopped, locked = true }) {
     <Drum radius={0.85} height={5.3} position={[0, 3.15, 0]} color={TEAL} />
     {[0.7, 1.1, 4.9, 5.5].map(y => <Ring key={y} radius={0.87} position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]} />)}
     <Parts items={details.columns} shape="cylinder" color={GOLD} />
-    <group ref={spin}>
+    <group ref={spin} userData={{ dynamic: true }}>
       {Array.from({ length: 8 }, (_, i) => {
         const a = i * TAU / 8
         return <group key={i} position={[Math.cos(a) * 4.15, 0, Math.sin(a) * 4.15]} rotation={[0, -a, 0]}>
           <Parts items={[beam([0, 0.55, 0], [0, 5.7, 0], 0.045)]} shape="cylinder" color={GOLD} />
-          <group ref={el => horses.current[i] = el} position={[0, 2, 0]}><Horse color={[IVORY, '#DCC5AA', '#BDCFCF', '#DFBDB4'][i % 4]} /></group>
+          <group ref={el => horses.current[i] = el} position={[0, 2, 0]} userData={{ dynamic: true }}><MergeStatic><Horse color={[IVORY, '#DCC5AA', '#BDCFCF', '#DFBDB4'][i % 4]} /></MergeStatic></group>
         </group>
       })}
     </group>

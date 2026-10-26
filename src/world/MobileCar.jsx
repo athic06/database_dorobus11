@@ -1,4 +1,5 @@
 import { forwardRef } from 'react'
+import MergeStatic from './MergeStatic.jsx'
 
 // 스토리 영상의 "모바일 로봇" 자동차: 베이지색 각진 차체, 지붕 난간, 지붕 위 회색 카메라,
 // 청록색 둥근 전조등, 세로 그릴, 큰 검은 바퀴와 베이지 휠. 앞쪽이 +z.
@@ -12,7 +13,8 @@ const TEAL = '#4FBFA8'
 function Wheel({ position, spinRef }) {
   return (
     <group position={position}>
-      <group ref={spinRef}>
+      <group ref={spinRef} userData={{ dynamic: true }}>
+        <MergeStatic>
         <mesh rotation={[0, 0, Math.PI / 2]} castShadow>
           <cylinderGeometry args={[0.55, 0.55, 0.45, 24]} />
           <meshStandardMaterial color="#26282E" roughness={0.9} />
@@ -27,6 +29,7 @@ function Wheel({ position, spinRef }) {
             <meshStandardMaterial color="#9C7A55" />
           </mesh>
         ))}
+        </MergeStatic>
       </group>
     </group>
   )
@@ -35,6 +38,7 @@ function Wheel({ position, spinRef }) {
 const MobileCar = forwardRef(function MobileCar({ wheelRefs = [], headlightsOn = true }, ref) {
   return (
     <group ref={ref}>
+      <MergeStatic deps={[headlightsOn]}>
       {/* 아래 차체 · 범퍼 */}
       <mesh position={[0, 0.95, 0]} castShadow receiveShadow>
         <boxGeometry args={[2, 0.9, 3.2]} />
@@ -150,6 +154,7 @@ const MobileCar = forwardRef(function MobileCar({ wheelRefs = [], headlightsOn =
       <Wheel position={[1.08, 0.55, 1.05]} spinRef={wheelRefs[1]} />
       <Wheel position={[-1.08, 0.55, -1.05]} spinRef={wheelRefs[2]} />
       <Wheel position={[1.08, 0.55, -1.05]} spinRef={wheelRefs[3]} />
+      </MergeStatic>
     </group>
   )
 })

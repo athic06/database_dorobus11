@@ -13,6 +13,7 @@ import {
   Harmonia, FerrisWheel, RollerCoaster, Carousel, CubeVault, Signboard, MyRoomHouse, Shop, Lab, Storage, Safari, CaveMountain,
 } from '../world/Landmarks.jsx'
 import Terrain from '../world/Terrain.jsx'
+import MergeStatic from '../world/MergeStatic.jsx'
 import { Outskirts } from '../world/Scenery.jsx'
 import { Balloons, Birds, Clouds, PerfProbe, SkyDome } from '../world/Atmosphere.jsx'
 import { ALL_COLLIDERS, ALL_ROAD_SEGMENTS, PLACES, ROADS, VAULT, WALK_COLLIDERS, WORLD_HALF, walkBlocked, walkHeight } from '../world/layout.js'
@@ -92,18 +93,26 @@ const Scenery = memo(function Scenery({ stopped, dusk, plazaOpen, shopReopened, 
       <Clouds dim={stopped} count={10} />
       {!stopped && <Birds />}
       {!stopped && <Balloons />}
-      <MyRoomHouse />
-      <Harmonia stopped={stopped} gateOpen={plazaOpen} />
+      {/* 하모니아, 놀이시설: 움직이지 않는 조각은 재질별로 합쳐 그리기 호출을 줄인다 */}
+      <MergeStatic deps={[stopped, plazaOpen]}>
+        <Harmonia stopped={stopped} gateOpen={plazaOpen} />
+      </MergeStatic>
       <Signboard stopped={stopped || broken('sign')} />
-      <FerrisWheel stopped={stopped || broken('ferris')} />
-      <RollerCoaster stopped={stopped || broken('coaster')} />
-      <Carousel stopped={stopped || broken('carousel')} locked={!shopReopened} />
+      <MergeStatic deps={[stopped, faultKey, shopReopened]}>
+        <FerrisWheel stopped={stopped || broken('ferris')} />
+        <RollerCoaster stopped={stopped || broken('coaster')} />
+        <Carousel stopped={stopped || broken('carousel')} locked={!shopReopened} />
+      </MergeStatic>
       <CubeVault open={shopReopened} cubes={shopReopened && !cubesFound} />
-      <Shop state={shopState} />
-      <Lab open={voidStarted} />
-      <Storage />
-      <Safari />
-      <CaveMountain open={caveOpen} />
+      {/* 건물들도 움직이지 않는 조각을 합쳐 그린다 */}
+      <MergeStatic deps={[shopState, voidStarted, caveOpen]}>
+        <MyRoomHouse />
+        <Shop state={shopState} />
+        <Lab open={voidStarted} />
+        <Storage />
+        <Safari />
+        <CaveMountain open={caveOpen} />
+      </MergeStatic>
       <Xylo position={XYLO_POS} rotation={-2.4} />
       <Naty position={NATY_POS} label="?" />
     </>

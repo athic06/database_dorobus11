@@ -98,7 +98,7 @@ export function Harmonia({ stopped, gateOpen = false, showGate = true, labelDist
         <cylinderGeometry args={[1.6, 2.4, 12, 24]} />
         <meshStandardMaterial color={c.body} />
       </mesh>
-      <group ref={rings}>
+      <group ref={rings} userData={{ dynamic: true }}>
         {[5, 8.5, 12].map((y, i) => (
           <mesh key={y} position={[0, y, 0]} rotation={[Math.PI / 2 + 0.25 * (i - 1), 0, 0]}>
             <torusGeometry args={[2.9 - i * 0.3, 0.18, 10, 48]} />
@@ -117,7 +117,7 @@ export function Harmonia({ stopped, gateOpen = false, showGate = true, labelDist
       </mesh>
       {/* 톱니 */}
       {[[2.3, 6, 0.6], [-2.4, 10, 0.5]].map(([x, y, r], i) => (
-        <group key={i} position={[x, y, 1.3]} ref={(el) => (gears.current[i] = el)}>
+        <group key={i} position={[x, y, 1.3]} ref={(el) => (gears.current[i] = el)} userData={{ dynamic: true }}>
           <mesh rotation={[Math.PI / 2, 0, 0]}>
             <cylinderGeometry args={[r * 2, r * 2, 0.3, 16]} />
             <meshStandardMaterial color={c.ring} metalness={0.4} />
@@ -133,7 +133,7 @@ export function Harmonia({ stopped, gateOpen = false, showGate = true, labelDist
       {/* 음표 */}
       {!stopped &&
         Array.from({ length: 6 }).map((_, i) => (
-          <group key={i} ref={(el) => (notes.current[i] = el)}>
+          <group key={i} ref={(el) => (notes.current[i] = el)} userData={{ dynamic: true }}>
             <mesh>
               <sphereGeometry args={[0.35, 12, 12]} />
               <meshStandardMaterial color="#7C5CE0" emissive="#7C5CE0" emissiveIntensity={0.8} />
@@ -525,7 +525,7 @@ export function CaveMountain({ open }) {
         <planeGeometry args={[6, 0.4]} />
         <meshStandardMaterial color="#120E14" />
       </mesh>
-      <mesh ref={glyph} position={[0, 6.4, -1.4]}>
+      <mesh ref={glyph} position={[0, 6.4, -1.4]} userData={{ dynamic: true }}>
         <torusGeometry args={[0.9, 0.12, 8, 6]} />
         <meshStandardMaterial color="#B98CFF" emissive="#8A4DFF" emissiveIntensity={1} toneMapped={false} />
       </mesh>

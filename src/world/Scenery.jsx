@@ -2,6 +2,7 @@ import { useLayoutEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Label } from './Landmarks.jsx'
+import MergeStatic from './MergeStatic.jsx'
 import { Glitter } from './Atmosphere.jsx'
 import { Water } from './Terrain.jsx'
 import { LAKE, PLACES } from './layout.js'
@@ -46,7 +47,7 @@ function SwanBoat({ radius, speed, phase, color }) {
     ref.current.rotation.y = -a - (speed > 0 ? 0 : Math.PI)
   })
   return (
-    <group ref={ref}>
+    <group ref={ref} userData={{ dynamic: true }}>
       <mesh castShadow>
         <boxGeometry args={[1.6, 0.5, 2.6]} />
         <Std color="#FFFFFF" />
@@ -155,7 +156,7 @@ function Butterfly({ center, phase, color }) {
     r.current.rotation.z = -f
   })
   return (
-    <group ref={ref}>
+    <group ref={ref} userData={{ dynamic: true }}>
       <group ref={l}>
         <mesh position={[0.22, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <circleGeometry args={[0.22, 10]} />
@@ -197,7 +198,7 @@ function Fountain() {
         <Std color="#E9E3D6" />
       </mesh>
       {[0, 1, 2, 3, 4].map((i) => (
-        <mesh key={i} ref={(el) => (jets.current[i] = el)} position={i === 0 ? [0, 2.3, 0] : [Math.cos(i * 1.57) * 0.9, 2.3, Math.sin(i * 1.57) * 0.9]}>
+        <mesh key={i} ref={(el) => (jets.current[i] = el)} userData={{ dynamic: true }} position={i === 0 ? [0, 2.3, 0] : [Math.cos(i * 1.57) * 0.9, 2.3, Math.sin(i * 1.57) * 0.9]}>
           <cylinderGeometry args={[0.05, 0.12, i === 0 ? 2.6 : 1.2, 8]} />
           <meshStandardMaterial color="#CFF2FF" emissive="#9FE3FF" emissiveIntensity={0.6} transparent opacity={0.75} />
         </mesh>
@@ -323,7 +324,7 @@ export function WindmillHill() {
             <Std color="#7FC8FF" emissive="#7FC8FF" emissiveIntensity={0.25} />
           </mesh>
         ))}
-        <group ref={blades} position={[0, 7.4, 2.6]}>
+        <group ref={blades} position={[0, 7.4, 2.6]} userData={{ dynamic: true }}>
           <mesh rotation={[Math.PI / 2, 0, 0]}>
             <cylinderGeometry args={[0.35, 0.35, 0.6, 12]} />
             <Std color="#5B4632" />
@@ -435,12 +436,12 @@ function Train() {
   return (
     <group>
       {colors.map((c, i) => (
-        <group key={i} ref={(el) => (cars.current[i] = el)}>
+        <group key={i} ref={(el) => (cars.current[i] = el)} userData={{ dynamic: true }}>
           <Wagon color={c} loco={i === 0} />
         </group>
       ))}
       {[0, 1, 2, 3, 4].map((i) => (
-        <mesh key={i} ref={(el) => (smoke.current[i] = el)}>
+        <mesh key={i} ref={(el) => (smoke.current[i] = el)} userData={{ dynamic: true }}>
           <icosahedronGeometry args={[0.6, 1]} />
           <meshStandardMaterial color="#FFFFFF" transparent opacity={0.6} depthWrite={false} />
         </mesh>
@@ -565,13 +566,13 @@ export function Observatory() {
         <Std color="#6E83B5" roughness={0.45} />
       </mesh>
       {/* 돔 틈 사이로 나온 망원경 */}
-      <group ref={scope} position={[0, 7.2, 0]}>
+      <group ref={scope} position={[0, 7.2, 0]} userData={{ dynamic: true }}>
         <mesh position={[0, 1.2, 1.6]} rotation={[-0.8, 0, 0]} castShadow>
           <cylinderGeometry args={[0.4, 0.55, 4, 14]} />
           <Std color="#E9E3D6" metalness={0.3} />
         </mesh>
       </group>
-      <group ref={ring} position={[0, 12.5, 0]} rotation={[Math.PI / 2.4, 0, 0]}>
+      <group ref={ring} position={[0, 12.5, 0]} rotation={[Math.PI / 2.4, 0, 0]} userData={{ dynamic: true }}>
         <mesh>
           <torusGeometry args={[2.4, 0.08, 8, 48]} />
           <meshStandardMaterial color="#B79CFF" emissive="#8A4DFF" emissiveIntensity={2.2} />
@@ -613,7 +614,7 @@ function Campfire() {
           <Std color="#6B4A2E" />
         </mesh>
       ))}
-      <group ref={flame} position={[0, 0.3, 0]}>
+      <group ref={flame} position={[0, 0.3, 0]} userData={{ dynamic: true }}>
         <mesh position={[0, 0.5, 0]}>
           <coneGeometry args={[0.5, 1.2, 8]} />
           <meshStandardMaterial color="#FFB35C" emissive="#FF7A1A" emissiveIntensity={3} transparent opacity={0.9} />
@@ -674,13 +675,13 @@ export function Campground() {
 
 export function Outskirts() {
   return (
-    <>
+    <MergeStatic>
       <LakePark />
       <FlowerGarden />
       <WindmillHill />
       <TrainStation />
       <Observatory />
       <Campground />
-    </>
+    </MergeStatic>
   )
 }

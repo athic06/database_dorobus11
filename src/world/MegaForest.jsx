@@ -14,7 +14,7 @@ const BASE = `${import.meta.env.BASE_URL}models/forest/`
 
 const BROADLEAF = ['CommonTree_3', 'CommonTree_4', 'CommonTree_5']
 const CONIFER = ['Pine_2', 'Pine_4', 'Pine_5']
-const BUSHES = ['Bush_Common', 'Bush_Common_Flowers']
+const BUSHES = ['Bush_Common']
 const ROCKS = ['Rock_Medium_1', 'Rock_Medium_2', 'Rock_Medium_3']
 ;[...BROADLEAF, ...CONIFER, ...BUSHES, ...ROCKS].forEach((n) => useGLTF.preload(`${BASE}${n}.glb`))
 
@@ -43,7 +43,7 @@ function addSway(material, amp) {
 // 화면이 다시 그려져도 같은 재질을 쓰도록 처음 한 번만 만들어 모듈에 보관한다.
 let sharedMaterials = null
 function useMaterials() {
-  const tex = useTexture({ bark: `${BASE}bark.jpg`, rocks: `${BASE}rocks.jpg`, leaves: `${BASE}leaves.png`, pine: `${BASE}pine.png`, bush: `${BASE}bush.png`, flowers: `${BASE}flowers.png` })
+  const tex = useTexture({ bark: `${BASE}bark.jpg`, rocks: `${BASE}rocks.jpg`, leaves: `${BASE}leaves.png`, pine: `${BASE}pine.png` })
   if (sharedMaterials) return sharedMaterials
   sharedMaterials = (() => {
     for (const t of Object.values(tex)) {
@@ -62,8 +62,7 @@ function useMaterials() {
       Bark_NormalTree: new THREE.MeshStandardMaterial({ map: tex.bark, roughness: 0.95 }),
       Leaves_NormalTree: leaf(tex.leaves, 0.012),
       Leaves_Pine: leaf(tex.pine, 0.008),
-      Leaves_TwistedTree: leaf(tex.bush, 0.02),
-      Flowers: leaf(tex.flowers, 0.02),
+      Leaves_TwistedTree: leaf(tex.leaves, 0.02), // 덤불: 원래 붉은 단풍 잎이라 초록 잎 그림을 쓴다
       Rocks: new THREE.MeshStandardMaterial({ map: tex.rocks, roughness: 1 }),
     }
   })()
