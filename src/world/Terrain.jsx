@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { Suspense, useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import Promenade from './Promenade.jsx'
-import { Forest, ForestLamps } from './Forest.jsx'
+import { ForestLamps } from './Forest.jsx'
+import MegaForest from './MegaForest.jsx'
 import { Ground, Roads, Horizon } from './ForestTerrain.jsx'
 import ParkDistricts from './ParkDistricts.jsx'
 import { LAKE, RIVER, groundHeight, isOpenGround, seeded } from './layout.js'
@@ -170,26 +171,20 @@ const FLOWER_COLORS = ['#FF8FB1', '#FFD45E', '#FFFFFF', '#B79CFF', '#FF9E5E', '#
 
 function Decor({ half }) {
   const flowers = useMemo(() => scatter(500, 11, half, (x, z) => isOpenGround(x, z, 4)), [half])
-  const rocks = useMemo(() => scatter(110, 23, half, (x, z) => isOpenGround(x, z, 5)), [half])
 
   const petalGeo = useMemo(() => new THREE.IcosahedronGeometry(0.2, 0), [])
   const stemGeo = useMemo(() => new THREE.CylinderGeometry(0.03, 0.03, 0.5, 4).translate(0, 0.25, 0), [])
   const flowerMat = useMemo(() => new THREE.MeshStandardMaterial({ flatShading: true, roughness: 0.6 }), [])
   const stemMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#4E9A43' }), [])
-  const rockGeo = useMemo(() => new THREE.DodecahedronGeometry(0.8, 0), [])
-  const rockMat = useMemo(() => new THREE.MeshStandardMaterial({ flatShading: true, roughness: 1 }), [])
 
   const placePetal = useMemo(() => (f) => ({ pos: [f.x, groundHeight(f.x,f.z) + 0.52, f.z], rot: [f.a, f.b, 0], scale: [1, 0.7, 1] }), [])
   const placeStem = useMemo(() => (f) => ({ pos: [f.x, groundHeight(f.x,f.z), f.z], scale: [1, 1, 1] }), [])
   const colorPetal = useMemo(() => (f) => FLOWER_COLORS[Math.floor(f.c * FLOWER_COLORS.length)], [])
-  const placeRock = useMemo(() => (r) => ({ pos: [r.x, groundHeight(r.x,r.z) + 0.15, r.z], rot: [r.a, r.b * 6, r.c], scale: [0.6 + r.a * 1.4, 0.4 + r.b * 0.6, 0.6 + r.c * 1.2] }), [])
-  const colorRock = useMemo(() => (r) => (r.c > 0.5 ? '#B8B4AC' : '#A29D94'), [])
 
   return (
     <group>
       <Instanced items={flowers} place={placeStem} geometry={stemGeo} material={stemMat} />
       <Instanced items={flowers} place={placePetal} color={colorPetal} geometry={petalGeo} material={flowerMat} />
-      <Instanced items={rocks} place={placeRock} color={colorRock} geometry={rockGeo} material={rockMat} castShadow />
     </group>
   )
 }
@@ -216,7 +211,9 @@ export default function Terrain({ roads, half, night = false }) {
         </mesh>
         <Water round position={[0, 0.045, 0]} scale={[LAKE[2], LAKE[2], 1]} />
       </group>
-      <Forest />
+      <Suspense fallback={null}>
+        <MegaForest />
+      </Suspense>
       <ParkDistricts />
       <Decor half={half - 2} />
       <ForestLamps night={night} />

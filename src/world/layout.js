@@ -145,10 +145,13 @@ export function walkHeight(x, z) {
   if (d < base && onStairs(x, z)) return Math.min(steps, Math.floor(((base - d) / (base - top)) * steps) + 1) * (h / steps)
   return 0
 }
-// 언덕 비탈은 계단 말고는 걸어서 지날 수 없다
+// 축대 벽은 계단 말고는 넘을 수 없다 (위에서는 떨어지지 않게, 아래에서는 오르지 못하게)
 export function walkBlocked(x, z) {
   const d = Math.hypot(x - FERRIS_HILL.x, z - FERRIS_HILL.z)
-  return d > FERRIS_HILL.top - 0.4 && d < FERRIS_HILL.base + 0.3 && !onStairs(x, z)
+  if (d > FERRIS_HILL.top - 0.4 && d < FERRIS_HILL.top + 0.7 && !onStairs(x, z)) return true
+  // 계단 양옆 돌벽
+  const side = Math.abs(z - FERRIS_HILL.z)
+  return x > FERRIS_HILL.x && d > FERRIS_HILL.top - 0.4 && d < FERRIS_HILL.base && side > FERRIS_HILL.stairHalf - 0.1 && side < FERRIS_HILL.stairHalf + 0.6
 }
 
 // Keep story NPCs and collectible interaction areas clear as the forest expands.

@@ -2,7 +2,8 @@ import { useLayoutEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { FERRIS_HILL } from './layout.js'
 
-// 관람차 언덕: 둥근 흙 언덕 위 평지에 관람차가 서 있고, 동쪽(+x)으로 돌계단이 나 있다.
+// 관람차 언덕: 돌로 쌓은 둥근 축대(높이 H) 위 평지에 관람차가 서 있고, 동쪽(+x)으로 속이 꽉 찬 돌계단이 나 있다.
+// (예전의 흙 비탈은 그늘져서 아래가 뚫린 것처럼 보여, 분명히 채워진 축대로 바꿨다)
 // 높이 규칙(걸을 때 발밑 높이, 막힌 비탈)은 layout.js의 walkHeight, walkBlocked와 맞춘다.
 const { x: HX, z: HZ, top: TOP, base: BASE, h: H, stairHalf: SH, steps: STEPS } = FERRIS_HILL
 const TREAD = (BASE - TOP) / STEPS
@@ -32,16 +33,13 @@ const BOX = new THREE.BoxGeometry(1, 1, 1)
 const CYL = new THREE.CylinderGeometry(1, 1, 1, 10)
 
 export default function FerrisHill() {
-  // 언덕 단면: 꼭대기 평지 → 부드럽게 내려가는 비탈
-  const mound = useMemo(() => {
-    const pts = [new THREE.Vector2(0, H)]
-    for (let i = 0; i <= 16; i++) {
-      const t = i / 16
-      const r = TOP + (BASE + 0.6 - TOP) * t
-      const k = t * t * (3 - 2 * t)
-      pts.push(new THREE.Vector2(r, H * (1 - k)))
-    }
-    return new THREE.LatheGeometry(pts, 64)
+  // 축대 돌 텍스처 (숲 바위와 같은 그림). 불러오는 동안 화면이 멈추지 않게 비동기로 읽는다.
+  const stone = useMemo(() => {
+    const t = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}models/forest/rocks.jpg`)
+    t.colorSpace = THREE.SRGBColorSpace
+    t.wrapS = t.wrapT = THREE.RepeatWrapping
+    t.repeat.set(10, 1.2)
+    return t
   }, [])
 
   const parts = useMemo(() => {
@@ -57,9 +55,12 @@ export default function FerrisHill() {
     // 계단 양옆 돌벽과 난간
     for (const side of [-1, 1]) {
       const z = side * (SH + 0.18)
-      const len = BASE - TOP + 0.6
       const ang = Math.atan2(H, BASE - TOP)
-      cheeks.push({ pos: [(BASE + TOP) / 2, H / 2, z], rot: [0, 0, -ang], scale: [Math.hypot(len, H), 0.5, 0.36] })
+      for (let i = 0; i < STEPS; i++) {
+        const d = BASE - (i + 0.5) * TREAD
+        const y = (i + 1) * (H / STEPS) + 0.18
+        cheeks.push({ pos: [d, y / 2, z], scale: [TREAD + 0.02, y, 0.36] })
+      }
       for (let i = 0; i <= 4; i++) {
         const d = BASE - (i / 4) * (BASE - TOP)
         const y = Math.min(H, ((BASE - d) / (BASE - TOP)) * H)
@@ -88,8 +89,19 @@ export default function FerrisHill() {
 
   return (
     <group position={[HX, 0, HZ]}>
-      <mesh geometry={mound} receiveShadow castShadow>
-        <meshStandardMaterial color="#6F8B55" roughness={1} />
+      {/* 돌 축대: 옆면 + 위 테두리 갓돌 */}
+      <mesh position={[0, H / 2, 0]} receiveShadow castShadow>
+        <cylinderGeometry args={[TOP, TOP + 0.35, H, 48, 1, true]} />
+        <meshStandardMaterial map={stone} color="#C9C2B2" roughness={1} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, H + 0.035, 0]} receiveShadow>
+        <ringGeometry args={[TOP - 0.45, TOP + 0.05, 48]} />
+        <meshStandardMaterial color="#B9B09A" roughness={0.9} />
+      </mesh>
+      {/* 축대 아래 풀숲 띠: 땅과 만나는 선을 자연스럽게 */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.09, 0]} receiveShadow>
+        <ringGeometry args={[TOP + 0.3, TOP + 1.6, 48]} />
+        <meshStandardMaterial color="#5F7F4C" roughness={1} />
       </mesh>
       {/* 꼭대기 돌바닥 */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, H + 0.02, 0]} receiveShadow>
