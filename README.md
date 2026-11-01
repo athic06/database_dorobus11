@@ -36,6 +36,7 @@ npm run dev
 | `src/game/courses.js` | 도로버스 수업 목록(레벨 1~8)과 수업마다 라이브러리에서 고른 과제(ASSIGN). 수업이 바뀌면 이 파일만 고친다 |
 | `src/store.jsx` | 계정별 저장 (브라우저 localStorage) |
 | `public/models/forest` | 숲 3D 모델과 텍스처: Quaternius Stylized Nature MegaKit (CC0, 라이선스 파일 함께 둠). 원본에서 도형만 GLB로 뽑고 텍스처는 줄여서 공용으로 씀 |
+| `public/models/robot` | 플레이어 로봇 모션 (Mixamo). 원본 FBX를 `scripts/mixamo-to-json.mjs`로 줄여 JSON 하나로 만듦. 출처와 다시 만드는 법은 같은 폴더 CREDITS.txt |
 | `public/models/animals` | 사파리 동물, 호수 오리 모델 (Poly Pizza, CC BY 3.0). 작가와 링크는 같은 폴더 CREDITS.txt |
 | `server/` | 미니PC 설정 (Caddy, systemd, DuckDNS, 자동 배포) |
 

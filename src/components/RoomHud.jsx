@@ -33,7 +33,7 @@ export default function RoomHud({ title, backTo = '/', backLabel = '← 대시�
         </span>
       </div>
       <div className="hud hud-quest"><QuestTracker /></div>
-      <div className="hud hint">WASD 이동 · 마우스 드래그로 시점 회전 · 휠로 확대/축소 · Space 점프 · E 상호작용</div>
+      <div className="hud hint">WASD 이동 · Shift 천천히 걷기 · Space 점프 · 마우스 드래그로 시점 회전 · 휠로 확대/축소 · E 상호작용</div>
       {onChat && (
         <form className="hud chat" onSubmit={send}>
           <input

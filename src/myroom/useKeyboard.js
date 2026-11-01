@@ -7,12 +7,13 @@ const MAP = {
   KeyA: 'left', ArrowLeft: 'left',
   KeyD: 'right', ArrowRight: 'right',
   Space: 'jump',
+  ShiftLeft: 'walk', ShiftRight: 'walk',
 }
 
 const isTyping = (e) => ['INPUT', 'TEXTAREA'].includes(e.target?.tagName)
 
 export function useKeyboard(onAction) {
-  const keys = useRef({ forward: false, back: false, left: false, right: false, jump: false })
+  const keys = useRef({ forward: false, back: false, left: false, right: false, jump: false, walk: false })
   const actionRef = useRef(onAction)
   actionRef.current = onAction
 

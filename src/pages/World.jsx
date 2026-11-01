@@ -649,7 +649,7 @@ export default function World() {
       )}
       <div className="hud hint">
         {onFoot
-          ? 'WASD 이동 · Space 점프 · 마우스 드래그로 둘러보기 · 휠 확대/축소 · E 상호작용 · 차 옆에서 F 타기'
+          ? 'WASD 이동 · Shift 천천히 걷기 · Space 점프 · 마우스 드래그로 둘러보기 · 휠 확대/축소 · E 상호작용 · 차 옆에서 F 타기'
           : 'W/S 앞·뒤 · A/D 방향 · 마우스 드래그로 둘러보기 · 휠 확대/축소 · E 상호작용 · F 내려서 걷기'}
       </div>
       {onFoot && nearCar && !near && !busy && (
