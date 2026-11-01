@@ -3,10 +3,16 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 import { ROOM_HALF } from './Room.jsx'
+import RobotRig, { useMotions } from './RobotRig.jsx'
 
 const SPEED = 4.2
+const WALK_FACTOR = 0.35 // Shift를 누르고 있으면 천천히 걷는다
+const ACCEL = 12 // 출발할 때 목표 속도까지 따라붙는 빠르기
+const DECEL = 16 // 멈출 때
 const JUMP_V = 6.2 // 스페이스 점프 처음 속도
 const GRAVITY = 19
+const JUMP_BUFFER = 0.15 // 착지 직전에 누른 점프도 받아 준다(초)
+const SEAT_LIFT = 0.3 // 앉은 자세에서 몸을 의자 높이까지 올린다 (Mixamo 몸체)
 const LIMIT = ROOM_HALF - 0.7
 const ROOM_BOUNDS = { minX: -LIMIT, maxX: LIMIT, minZ: -LIMIT, maxZ: LIMIT }
 const NO_KEYS = { forward: false, back: false, left: false, right: false }
@@ -38,39 +44,56 @@ function lerpAngle(a, b, t) {
 // heightAt(x, z): 발밑 높이(계단, 언덕), blocked(x, z): 걸어서 못 들어가는 곳, speed: 걷는 속도
 export default function Robot({ posRef, targetRef, keys, view, name, bubble, onMove, bounds = ROOM_BOUNDS, colliders = [], frozen = false, cameraControlled = false, seated = false, face = null, heightAt = null, blocked = null, speed = SPEED }) {
   const group = useRef()
-  const body = useRef()
-  const legs = [useRef(), useRef()]
-  const arms = [useRef(), useRef()]
-  const stride = useRef(0) // 걸음 위상: 움직인 거리만큼 앞으로 간다
+  const motions = useMotions()
   const ground = useRef(heightAt ? heightAt(posRef.current.x, posRef.current.z) : 0)
-  const { camera } = useThree()
+  const vel = useRef(new THREE.Vector3()) // 지금 움직이는 속도 (가속·감속을 부드럽게)
+  const jump = useRef({ y: 0, v: 0, held: false, pressedAt: -1 })
+  // 몸체 애니메이션이 읽는 상태
+  const anim = useRef({ speed: 0, air: false, vy: 0, seated: false, landedAt: -10, jumpedAt: -10, waveUntil: 0, stride: 0 })
+  const { camera, clock } = useThree()
 
   // 개발 서버에서만: 콘솔에서 window.__robot.teleport(x, z)로 위치 이동 (배포 빌드에는 없음)
   useEffect(() => {
     if (!import.meta.env.DEV) return
-    window.__robot = { teleport: (x, z) => posRef.current.set(x, 0, z), where: () => [...posRef.current.toArray(), ground.current] }
+    window.__robot = { teleport: (x, z) => posRef.current.set(x, 0, z), where: () => [...posRef.current.toArray(), ground.current], anim: () => ({ ...anim.current }) }
     return () => delete window.__robot
   }, [posRef])
 
-  const jump = useRef({ y: 0, v: 0 })
+  // 말풍선을 띄우면 손을 흔든다
+  useEffect(() => {
+    if (bubble) anim.current.waveUntil = clock.elapsedTime + 1.8
+  }, [bubble, clock])
 
-  useFrame((state, dt) => {
+  useFrame((state, rawDt) => {
+    const dt = Math.min(rawDt, 0.05)
+    const now = state.clock.elapsedTime
     const k = frozen ? NO_KEYS : keys.current
-    // 스페이스: 땅에 있을 때만 뛰어오른다
+    const a = anim.current
+
+    // 스페이스: 누른 순간을 기억해 두었다가 땅에 있으면 뛰어오른다
     const j = jump.current
-    if (k.jump && j.y === 0 && !seated) j.v = JUMP_V
+    if (k.jump && !j.held) j.pressedAt = now
+    j.held = !!k.jump
+    if (j.y === 0 && !seated && now - j.pressedAt < JUMP_BUFFER) {
+      j.v = JUMP_V
+      j.pressedAt = -1
+      a.jumpedAt = now
+    }
     if (j.v || j.y) {
-      j.v -= GRAVITY * Math.min(dt, 0.05)
-      j.y += j.v * Math.min(dt, 0.05)
+      j.v -= GRAVITY * dt
+      j.y += j.v * dt
       if (j.y <= 0) {
         j.y = 0
         j.v = 0
+        a.landedAt = now
       }
     }
+
     if (frozen) targetRef.current = null
     const sx = (k.right ? 1 : 0) - (k.left ? 1 : 0)
     const sy = (k.forward ? 1 : 0) - (k.back ? 1 : 0)
     move.set(0, 0, 0)
+    let top = k.walk ? speed * WALK_FACTOR : speed
 
     if (sx || sy) {
       // W는 카메라가 바라보는 방향, D는 화면 오른쪽
@@ -81,20 +104,32 @@ export default function Robot({ posRef, targetRef, keys, view, name, bubble, onM
       move.addScaledVector(right, sx).addScaledVector(forward, sy)
     } else if (targetRef.current) {
       move.subVectors(targetRef.current, posRef.current).setY(0)
-      if (move.length() < 0.12) {
+      const d = move.length()
+      if (d < 0.12) {
         targetRef.current = null
         move.set(0, 0, 0)
+      } else {
+        top = Math.min(top, d * 5) // 클릭한 곳에 다가가면 속도를 줄여 멈춘다
       }
     }
+    if (seated) move.set(0, 0, 0)
 
-    const moving = move.lengthSq() > 0
-    if (moving) {
+    const wants = move.lengthSq() > 0
+    if (wants) {
       move.normalize()
       group.current.rotation.y = lerpAngle(group.current.rotation.y, Math.atan2(move.x, move.z), 1 - Math.pow(0.0001, dt))
-      const p = posRef.current
-      const px = p.x
-      const pz = p.z
-      p.addScaledVector(move, speed * Math.min(dt, 0.1))
+    }
+    // 바로 최고 속도로 튀어 나가지 않고 짧게 가속·감속한다
+    const v = vel.current
+    move.multiplyScalar(top)
+    v.lerp(move, 1 - Math.exp(-dt * (wants ? ACCEL : DECEL)))
+    if (!wants && v.lengthSq() < 0.0004) v.set(0, 0, 0)
+
+    const p = posRef.current
+    const px = p.x
+    const pz = p.z
+    if (v.lengthSq() > 0) {
+      p.addScaledVector(v, dt)
       if (bounds.radius) {
         // 원형 공간(광장)
         const d = Math.hypot(p.x, p.z)
@@ -123,48 +158,73 @@ export default function Robot({ posRef, targetRef, keys, view, name, bubble, onM
           if (blocked(p.x, p.z)) p.x = px
         }
       }
-      stride.current += speed * Math.min(dt, 0.1) * 2.4
     }
+    // 실제로 움직인 거리로 속도를 잰다: 벽에 막혀 있으면 제자리에서 걷지 않는다
+    const moved = Math.hypot(p.x - px, p.z - pz) / Math.max(dt, 1e-4)
+    a.speed += (moved - a.speed) * Math.min(1, dt * 20)
+    a.stride += moved * dt * 2.4
+    a.air = j.y > 0
+    a.vy = j.v
+    a.seated = seated
+
     // 계단을 오르내릴 때 한 칸씩 툭 끊기지 않게 부드럽게 따라간다
-    const g = heightAt ? heightAt(posRef.current.x, posRef.current.z) : 0
+    const g = heightAt ? heightAt(p.x, p.z) : 0
     ground.current += (g - ground.current) * Math.min(1, dt * 14)
-    group.current.position.copy(posRef.current)
+    group.current.position.copy(p)
     if (face !== null) group.current.rotation.y = lerpAngle(group.current.rotation.y, face, 1 - Math.pow(0.001, dt))
-    group.current.position.y = ground.current + (seated ? 0.45 : 0) + j.y
+    group.current.position.y = ground.current + (seated ? (motions ? SEAT_LIFT : 0.45) : 0) + j.y
+
+    camGoal.copy(p).add(viewOffset(view.current, look))
+    camGoal.y += ground.current
+    if (!cameraControlled) camera.position.lerp(camGoal, 1 - Math.pow(0.0005, dt))
+    look.copy(p).setY(ground.current + 0.9)
+    if (!cameraControlled) camera.lookAt(look)
+
+    onMove?.(p)
+  })
+
+  return (
+    <group ref={group}>
+      {motions ? <RobotRig data={motions} anim={anim} /> : <ClassicBody anim={anim} />}
+      <Html position={[0, 2.25, 0]} center zIndexRange={[1, 0]}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+          {bubble && <div className="bubble">{bubble}</div>}
+          <div className="nametag">{name}</div>
+        </div>
+      </Html>
+    </group>
+  )
+}
+
+// 모션 파일을 불러오기 전(또는 못 불러왔을 때) 보여 주는 원래 로봇. 다리·팔을 코드로 흔든다.
+function ClassicBody({ anim }) {
+  const body = useRef()
+  const legs = [useRef(), useRef()]
+  const arms = [useRef(), useRef()]
+
+  useFrame((state, dt) => {
+    const s = anim.current
     const t = state.clock.elapsedTime
-    // 걷기: 다리는 앞뒤로 엇갈리고 팔은 반대로 흔든다. 공중에서는 다리를 살짝 접는다.
-    const walking = moving && !j.y && !seated
-    const ph = stride.current
+    const walking = s.speed > 0.3 && !s.air && !s.seated
+    const ph = s.stride
     const swing = walking ? Math.sin(ph) * 0.65 : 0
     const ease = 1 - Math.pow(0.0001, dt)
     legs.forEach((l, i) => {
-      const goal = j.y ? (i ? -0.35 : 0.45) : seated ? -1.4 : i ? -swing : swing
+      const goal = s.air ? (i ? -0.35 : 0.45) : s.seated ? -1.4 : i ? -swing : swing
       l.current.rotation.x = THREE.MathUtils.lerp(l.current.rotation.x, goal, walking ? 1 : ease)
     })
     arms.forEach((a, i) => {
-      const goal = j.y ? -0.9 : i ? swing * 0.8 : -swing * 0.8
+      const goal = s.air ? -0.9 : i ? swing * 0.8 : -swing * 0.8
       a.current.rotation.x = THREE.MathUtils.lerp(a.current.rotation.x, goal, walking ? 1 : ease)
     })
-    // 몸은 한 걸음마다 살짝 오르내리고 진행 방향으로 조금 기운다
-    body.current.position.y = j.y ? 0 : walking ? Math.abs(Math.cos(ph)) * 0.04 : Math.sin(t * 2) * 0.015
+    body.current.position.y = s.air ? 0 : walking ? Math.abs(Math.cos(ph)) * 0.04 : Math.sin(t * 2) * 0.015
     body.current.rotation.x = THREE.MathUtils.lerp(body.current.rotation.x, walking ? 0.08 : 0, ease)
-    // 공중에서는 몸이 살짝 늘어난다
-    body.current.scale.y = THREE.MathUtils.lerp(body.current.scale.y, j.y ? 1 + Math.min(Math.abs(j.v) * 0.015, 0.1) : 1, 0.3)
-
-    camGoal.copy(posRef.current).add(viewOffset(view.current, look))
-    camGoal.y += ground.current
-    if (!cameraControlled) camera.position.lerp(camGoal, 1 - Math.pow(0.0005, dt))
-    look.copy(posRef.current).setY(ground.current + 0.9)
-    if (!cameraControlled) camera.lookAt(look)
-
-    onMove?.(posRef.current)
   })
 
   const green = '#6CC395'
   const dark = '#3E9A6C'
-
   return (
-    <group ref={group}>
+    <>
       <group ref={body}>
         <mesh position={[0, 0.85, 0]} castShadow>
           <capsuleGeometry args={[0.32, 0.6, 8, 20]} />
@@ -221,13 +281,6 @@ export default function Robot({ posRef, targetRef, keys, view, name, bubble, onM
           </mesh>
         </group>
       ))}
-
-      <Html position={[0, 2.25, 0]} center zIndexRange={[1, 0]}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-          {bubble && <div className="bubble">{bubble}</div>}
-          <div className="nametag">{name}</div>
-        </div>
-      </Html>
-    </group>
+    </>
   )
 }
