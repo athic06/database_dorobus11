@@ -417,3 +417,15 @@
 .repair-overlay-card { max-height: calc(100% - 2rem); overflow: auto; }
 .repair-hypotheses.repair-overlay-card { width: min(620px, calc(100% - 2rem)); }
 .repair-hud-title .repair-steps li { white-space: nowrap; }
+
+/* 원격 수리 자격증 */
+.repair-license, .repair-locked {
+  display: flex; gap: .8rem; align-items: center; margin: .6rem 0 1rem; padding: .8rem 1rem; border-radius: 14px;
+  border: 1px solid #9fb79f; background: linear-gradient(135deg, #eef4ec, #fffaf0); text-align: left;
+}
+.repair-license > span, .repair-locked > span { font-size: 2rem; }
+.repair-license b, .repair-locked b { font-size: 1rem; }
+.repair-license p, .repair-locked p { margin: .2rem 0 0; color: var(--muted); line-height: 1.45; }
+.repair-locked { border-color: var(--rule); background: #f6efdf; }
+.repair-card-fault { border-color: #e2a59a; }
+.repair-card-fault strong { color: var(--accent); }

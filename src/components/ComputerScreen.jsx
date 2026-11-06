@@ -8,7 +8,7 @@ const APPS = [
   { id: 'catch', icon: '💎', name: '셀 캐치', desc: '떨어지는 CELL 받기' },
   { id: 'coding', icon: '🧩', name: '코딩 챌린지', desc: '최소 블록으로 길 찾기' },
   { id: 'piano', icon: '🎹', name: '피아노 게임', desc: '기억 모드, 음 맞히기' },
-  { id: 'repair', asset: '1F527', name: '정비 작업실', desc: '축제 개막 후 새 정비 의뢰' },
+  { id: 'repair', asset: '1F527', name: '원격 수리실', desc: '원격 수리 자격증으로 시설 고치기' },
 ]
 
 export default function ComputerScreen({ onClose, onPiano }) {

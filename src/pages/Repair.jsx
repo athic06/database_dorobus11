@@ -3,6 +3,8 @@ import { useStore } from '../store.jsx'
 import { PARADE, PARADE_STAMP_TARGET, REPAIR_CASES, WORKSHOP, trialResult } from '../game/repairCases.js'
 import { replyFromIntent, voidReply } from '../game/voidRepair.js'
 import RepairScene from './RepairScene.jsx'
+import FixMission from '../missions/FixMission.jsx'
+import { BREAKABLE, pendingFaults } from '../game/daily.js'
 import './repair.css'
 
 const ART = `${import.meta.env.BASE_URL}repair/openmoji/`
@@ -414,7 +416,12 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
             {!myHypothesis && <p>{item.resolution}</p>}
             {tries > 1 && <p className="repair-tries">가설을 {tries}번 고쳐 세우며 찾아냈어요!</p>}
             {item.part && <p>정비 인증 스탬프 · 해금 부품 <b>{item.part}</b></p>}
-            {item.id === 'parade' && <p>이제 마이룸 컴퓨터에서 정식 정비사 의뢰를 받을 수 있어요.</p>}
+            {item.id === 'parade' && (
+              <div className="repair-license">
+                <span aria-hidden="true">🪪</span>
+                <div><b>원격 수리 자격증을 받았어요!</b><p>이제 마이룸 컴퓨터의 ‘원격 수리실’에서 도로랜드 시설을 원격으로 고칠 수 있어요.</p></div>
+              </div>
+            )}
             <button className="repair-primary" onClick={onBack}>{inWorld ? '도로랜드로 돌아가기' : '작업 목록으로'}</button>
           </div>
         </div>
@@ -434,7 +441,11 @@ function SavedCase({ item, surface, onBack }) {
         [item.id]: { ...current.festivalInvestigations?.[item.id], ...patch },
       },
     }))}
-    onComplete={() => setProgress(current => ({ festivalRepairs: { ...current.festivalRepairs, [item.id]: true } }))}
+    onComplete={() => setProgress(current => ({
+      festivalRepairs: { ...current.festivalRepairs, [item.id]: true },
+      // 스토리 수리를 모두 마치면(개막 퍼레이드) 원격 수리 자격증
+      ...(item.id === 'parade' ? { remoteLicense: true } : {}),
+    }))}
   />
 }
 
@@ -460,48 +471,78 @@ function AssetCredit() {
   return <footer className="repair-credit">아이콘 <a href="https://openmoji.org/">OpenMoji</a> · <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a> · 버거 재료 <a href="https://davemarian.itch.io/food-and-ingredients-assets-from-gamejam">Dave Marian</a></footer>
 }
 
+// 마이룸 컴퓨터의 원격 수리실. 스토리 수리를 모두 마쳐 원격 수리 자격증을 받으면 열린다.
+// 자격증이 있으면 도로랜드에 가지 않고도 오늘 고장 난 시설을 고치고, 원격 의뢰를 받을 수 있다.
 export function FestivalDesk() {
-  const { progress } = useStore()
+  const { user, progress } = useStore()
   const [active, setActive] = useState(null)
+  const [fixing, setFixing] = useState(null)
   const records = progress.festivalRepairs ?? emptyRecords
   const stamps = REPAIR_CASES.filter(item => records[item.id]).length
-  const archive = records.parade ? [...REPAIR_CASES, PARADE].filter(item => records[item.id]) : []
+  const licensed = progress.remoteLicense || !!records.parade
+  const archive = licensed ? [...REPAIR_CASES, PARADE].filter(item => records[item.id]) : []
   const item = [WORKSHOP, ...archive].find(candidate => candidate.id === active)
+  const faults = licensed && progress.carCheckDone ? pendingFaults(user.id, progress.work) : []
   return (
     <section className={`repair-page repair-desk${item ? ' has-case' : ''}`}>
       {item ? (
         <>
           <SavedCase item={item} surface="desk" onBack={() => setActive(null)} />
-          <button className="repair-hud-back" onClick={() => setActive(null)}>← 작업 목록</button>
+          <button className="repair-hud-back" onClick={() => setActive(null)}>← 원격 수리실</button>
         </>
       ) : (
         <>
           <p className="repair-kicker">DORO OS / 마이룸</p>
-          <h2>정비 작업실</h2>
-          <p>{records.parade ? '정식 정비사' : '예비 정비사'} · 정비 인증 스탬프 {stamps}/{REPAIR_CASES.length}</p>
-          {!records.parade && <p>도로랜드에서 스탬프 {PARADE_STAMP_TARGET}개를 모으고 개막 퍼레이드를 마치면 이곳에서 새 의뢰를 받을 수 있어요.</p>}
-          {records.parade && <>
-            <h3>정식 정비사 의뢰</h3>
-            <div className="repair-cards">
-              <button className="repair-card" onClick={() => setActive(WORKSHOP.id)}>
-                <img src={image(WORKSHOP.asset)} alt="" />
-                <strong>{WORKSHOP.title}</strong>
-                <span>{records.delivery ? '완료 기록 보기' : progress.festivalInvestigations?.delivery ? '작업 이어하기' : '새 의뢰 시작'}</span>
-              </button>
+          <h2>원격 수리실</h2>
+          {!licensed ? (
+            <div className="repair-locked">
+              <span aria-hidden="true">🔒</span>
+              <div>
+                <b>원격 수리 자격증이 필요해요</b>
+                <p>도로랜드에서 축제 시설을 고치고(스탬프 {stamps}/{PARADE_STAMP_TARGET}) 개막 퍼레이드까지 마치면 자격증을 받아요. 그다음부터는 여기서도 수리할 수 있어요.</p>
+              </div>
             </div>
-            <h3>축제 시설 수리 기록</h3>
-            <div className="repair-cards">
-              {archive.map(candidate => (
-                <button key={candidate.id} className="repair-card" onClick={() => setActive(candidate.id)}>
-                  <img src={image(candidate.asset)} alt="" />
-                  <strong>{candidate.title}</strong>
-                  <span>완료 기록 보기</span>
+          ) : (
+            <>
+              <div className="repair-license">
+                <span aria-hidden="true">🪪</span>
+                <div><b>원격 수리 자격증</b><p>{user.name} · 도로랜드 정비 인증 스탬프 {stamps}/{REPAIR_CASES.length}</p></div>
+              </div>
+              <h3>오늘 고장 난 시설</h3>
+              {faults.length ? (
+                <div className="repair-cards">
+                  {faults.map(id => (
+                    <button key={id} className="repair-card repair-card-fault" onClick={() => setFixing(id)}>
+                      <strong>⚠ {BREAKABLE[id].name}</strong>
+                      <span>{BREAKABLE[id].fault}</span>
+                      <span>원격으로 수리하기</span>
+                    </button>
+                  ))}
+                </div>
+              ) : <p>오늘 고장 난 시설은 모두 고쳤어요.</p>}
+              <h3>원격 의뢰</h3>
+              <div className="repair-cards">
+                <button className="repair-card" onClick={() => setActive(WORKSHOP.id)}>
+                  <img src={image(WORKSHOP.asset)} alt="" />
+                  <strong>{WORKSHOP.title}</strong>
+                  <span>{records.delivery ? '완료 기록 보기' : progress.festivalInvestigations?.delivery ? '작업 이어하기' : '새 의뢰 시작'}</span>
                 </button>
-              ))}
-            </div>
-          </>}
+              </div>
+              <h3>축제 시설 수리 기록</h3>
+              <div className="repair-cards">
+                {archive.map(candidate => (
+                  <button key={candidate.id} className="repair-card" onClick={() => setActive(candidate.id)}>
+                    <img src={image(candidate.asset)} alt="" />
+                    <strong>{candidate.title}</strong>
+                    <span>완료 기록 보기</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </>
       )}
+      {fixing && <FixMission id={fixing} onClose={() => setFixing(null)} onFixed={() => setFixing(null)} />}
       <AssetCredit />
     </section>
   )
