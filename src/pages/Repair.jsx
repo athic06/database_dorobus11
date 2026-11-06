@@ -28,6 +28,8 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
     return investigation.diagnosed ? 'bench' : 'field'
   })
   const [category, setCategory] = useState('관찰')
+  const [sideTab, setSideTab] = useState('chat') // 오른쪽 창: 대화 | 수첩
+  const [guessing, setGuessing] = useState(false) // 원인 고르기 창
   const [known, setKnown] = useState(investigation.known ?? [])
   const [fact, setFact] = useState(() => investigation.diagnosed
     ? '부품을 조정하고 두 조건에서 시험해 보자.'
@@ -55,9 +57,7 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
   const inWorld = surface === 'world'
   const working = phase === 'field' || phase === 'bench'
   const activeStep = ['field', 'bench', 'complete'].indexOf(phase)
-  const portrait = working && <img className="repair-case-portrait"
-    src={`${import.meta.env.BASE_URL}portraits/void.svg`} alt="보이드" />
-  const guidance = <p className="repair-feedback" role="status"><b>보이드</b>{fact}</p>
+  const portrait = <img className="repair-case-portrait" src={`${import.meta.env.BASE_URL}portraits/void.svg`} alt="보이드" />
 
   useEffect(() => () => {
     window.clearTimeout(timer.current)
@@ -114,9 +114,9 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
     setChat(previous => previous.filter(message => message.reply))
     setTrial(null)
     save({ diagnosed: true })
+    setGuessing(false)
     setPhase('bench')
     setFact('원인을 찾았어. 부품을 조정하고 두 조건에서 시험해 보자.')
-    titleRef.current?.scrollIntoView({ block: 'start' })
   }
   const test = (index) => {
     const ok = trialResult(item, settings, index)
@@ -133,7 +133,6 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
         completed.current = true
         onComplete()
         setPhase('complete')
-        titleRef.current?.scrollIntoView({ block: 'start' })
       }
     }, 'test', index)
   }
@@ -196,134 +195,157 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
     setChat(previous => [...previous.slice(-3), { input, reply }])
   }
 
+  // 게임 화면 배치: 2D 장면이 화면 전체를 채우고, 그 위에
+  //  왼쪽 위: 사건 제목과 진행 단계 / 오른쪽: 보이드 대화와 정비 수첩 / 아래: 보이드 대사와 조사·수리 버튼
   return (
-    <section className="repair-case">
-      <div className={`repair-case-heading${working ? ' has-portrait' : ''}`}>
-        {portrait}
-        <p className="repair-kicker">
-          {item.district} <span aria-hidden="true">/</span> {inWorld ? '축제 전 시설 점검' : '마이룸 정비 작업실'}
-        </p>
-        <h2 ref={titleRef} tabIndex={-1}>{item.title}</h2>
+    <section className={`repair-case repair-stage${inWorld ? ' in-world' : ' in-desk'}`}>
+      <div className="repair-stage-scene">
+        <RepairScene item={item} settings={settings} trial={trial} inspected={inspected} field={phase === 'field'} finished={phase === 'complete' && !trial} stage />
       </div>
-      <ol className="repair-steps" aria-label="수리 진행 단계">
-        {STEPS.map((label, index) => (
-          <li key={label} aria-current={index === activeStep ? 'step' : undefined} data-done={index < activeStep}>
-            <span aria-hidden="true">{index < activeStep ? '✓' : index + 1}</span>{label}
-          </li>
-        ))}
-      </ol>
-      <div className="repair-columns">
-        <div className="repair-main">
-          {phase === 'field' && <>
-            <RepairScene item={item} settings={settings} trial={trial} inspected={inspected} field />
-            <div className="repair-section-title">
-              <h3>어디를 살펴볼까요?</h3>
-              {evidenceReady ? <button className="repair-text-button" onClick={() => {
-                evidenceReadyRef.current?.querySelector('input')?.focus()
-              }}>원인 선택으로 ↓</button> : <span>핵심 단서 {evidenceCount} / {item.required.length}</span>}
-            </div>
-            <div className="repair-tabs" aria-label="조사 방법">
-              {CATEGORY.filter(type => item.clueList.some(clue => clue.type === type)).map(type => (
-                <button key={type} aria-pressed={type === category} onClick={() => setCategory(type)}>{type}</button>
-              ))}
-            </div>
-            <div className="repair-action-grid" ref={actionRef}>
-              {item.clueList.filter(clue => clue.type === category).map(clue => (
-                <button key={clue.id} disabled={running || (clue.id === 'repeat' && !known.includes('run'))} onClick={() => inspect(clue)}>
-                  {clue.label}{known.includes(clue.id) ? ' ✓' : ''}
-                </button>
-              ))}
-            </div>
-            {guidance}
-            {evidenceReady && <fieldset className="repair-hypotheses" ref={evidenceReadyRef}>
-              <legend>어디서 문제가 생겼을까?</legend>
-              {item.hypotheses.map((label, index) => (
-                <label key={label}><input type="radio" name="repair-hypothesis" checked={hypothesis === index} onChange={() => setHypothesis(index)} />{label}</label>
-              ))}
-              <button className="repair-primary" disabled={running || hypothesis === null} onClick={diagnose}>원인 확인하고 수리하기</button>
-            </fieldset>}
-          </>}
-          {phase === 'bench' && (
-            <div className="repair-bench">
-              <RepairScene item={item} settings={settings} trial={trial} />
-              <div className="repair-section-title"><h3>부품 조정</h3><span>바꾼 뒤 아래에서 시험해요</span></div>
-              <div className="repair-controls">
-                {Object.entries(item.controls).map(([id, spec]) => item.id === 'carousel' ? (
-                    <label key={id}>{spec.label}
-                      <div className="repair-range"><input type="range" min={0} max={spec.options.length - 1} value={settings[id]} disabled={running} aria-valuetext={spec.options[settings[id]]} onChange={event => adjust(id, event.target.value)} /><output>{spec.options[settings[id]]}</output></div>
-                    </label>
-                  ) : (
-                    <fieldset key={id} className="repair-settings" disabled={running}>
-                      <legend>{spec.label}</legend>
-                      <div>{spec.options.map((option, index) => <label key={option}>
-                        <input type="radio" name={`repair-setting-${id}`} checked={settings[id] === index} onChange={() => adjust(id, index)} />
-                        {option}
-                      </label>)}</div>
-                    </fieldset>
-                ))}
-              </div>
-              <div className="repair-section-title"><h3>시험 운행</h3><span>{verified.length} / {item.tests.length} 통과</span></div>
-              <div className="repair-action-grid repair-test-grid" aria-label="시험 운행">
-                {item.tests.map((label, index) => {
-                  const current = trial?.kind === 'test' && trial.index === index
-                  const status = current && running ? '시험 중…' : verified.includes(index) ? '통과' : current && !trial.ok ? '다시 점검' : '시험하기'
-                  return <button key={label} disabled={running} data-status={status} onClick={() => test(index)}>
-                    <strong>{label}</strong><span>{status}</span>
-                  </button>
-                })}
-              </div>
-              {guidance}
-            </div>
-          )}
-          {phase === 'complete' && (
-            <div className="repair-success">
-              <img src={image(item.asset)} alt="" />
-              <h2>{item.id === 'parade' ? '축제가 열렸어요!' : '시설이 다시 움직여요!'}</h2>
-              {trial && <RepairScene item={item} settings={settings} trial={trial} finished />}
-              <p>{item.resolution}</p>
-              {item.part && <p>정비 인증 스탬프 · 해금 부품 <b>{item.part}</b></p>}
-              {item.id === 'parade' && <p>이제 마이룸 컴퓨터에서 정식 정비사 의뢰를 받을 수 있어요.</p>}
-              <button className="repair-primary" onClick={onBack}>{inWorld ? '도로랜드로 돌아가기' : '작업 목록으로'}</button>
-            </div>
-          )}
+
+      <header className="repair-hud-title">
+        {portrait}
+        <div>
+          <p className="repair-kicker">
+            {item.district} <span aria-hidden="true">/</span> {inWorld ? '축제 전 시설 점검' : '마이룸 정비 작업실'}
+          </p>
+          <h2 ref={titleRef} tabIndex={-1}>{item.title}</h2>
+          <ol className="repair-steps" aria-label="수리 진행 단계">
+            {STEPS.map((label, index) => (
+              <li key={label} aria-current={index === activeStep ? 'step' : undefined} data-done={index < activeStep}>
+                <span aria-hidden="true">{index < activeStep ? '✓' : index + 1}</span>{label}
+              </li>
+            ))}
+          </ol>
         </div>
-        <aside className="repair-sidebar">
-          {working && <section className="repair-conversation" aria-labelledby="repair-conversation-title">
-            <h3 id="repair-conversation-title">보이드와 대화</h3>
+      </header>
+
+      <aside className="repair-hud-side">
+        <div className="repair-side-tabs" role="tablist" aria-label="보이드 창">
+          <button role="tab" aria-selected={sideTab === 'chat'} onClick={() => setSideTab('chat')}>보이드와 대화</button>
+          <button role="tab" aria-selected={sideTab === 'notes'} onClick={() => setSideTab('notes')}>정비 수첩 <span>{noteCount}/{item.clueList.length}</span></button>
+        </div>
+        {sideTab === 'chat' && (
+          <section className="repair-conversation" aria-label="보이드와 대화">
             <div className="repair-chat-log" ref={chatLogRef} role="log" aria-label="보이드 대화 기록">
-              <p className="repair-chat-bubble">{phase === 'bench' ? '작업대를 열었어. 어떤 부품이나 시험이 궁금해?' : item.request}</p>
+              <p className="repair-chat-bubble">{phase === 'bench' ? '작업대를 열었어. 어떤 부품이나 시험이 궁금해?' : phase === 'complete' ? item.resolution : item.request}</p>
               {chat.map(({ input, reply }, index) => {
                 const action = item.clueList.find(clue => clue.id === reply?.suggestedClue)
                 return <div className="repair-chat-turn" key={index}>
                   <p className="repair-chat-bubble repair-chat-player"><b>나</b>{input}</p>
                   <div className="repair-chat-bubble">
                     <p>{reply?.text ?? '생각 중…'}</p>
-                    {phase === 'field' && action && <button className="repair-text-button" onClick={() => {
-                      setCategory(action.type)
-                      actionRef.current?.scrollIntoView({ block: 'nearest' })
-                    }}>{action.type} 탭 열기</button>}
+                    {phase === 'field' && action && <button className="repair-text-button" onClick={() => setCategory(action.type)}>{action.type} 버튼 보기</button>}
                   </div>
                 </div>
               })}
             </div>
-            <button className="repair-chat-prompt" type="button" disabled={asking} onClick={() => {
-              void ask(phase === 'field' ? '어디부터 볼까?' : '다음 시험은 뭐야?', true)
-            }}>{phase === 'field' ? '어디부터 볼까?' : '다음 시험은 뭐야?'}</button>
-            <form className="repair-chat" onSubmit={event => {
-              event.preventDefault()
-              void ask(question)
-            }}>
-              <input aria-label="보이드에게 질문" placeholder="궁금한 점을 물어봐" value={question} maxLength={180} onChange={event => setQuestion(event.target.value)} />
-              <button className="repair-primary" type="submit" disabled={asking || !question.trim()}>보내기</button>
-            </form>
-          </section>}
-          <section className="repair-notes">
-            <h2>정비 수첩 <span>{noteCount} / {item.clueList.length}</span></h2>
+            {working && <>
+              <button className="repair-chat-prompt" type="button" disabled={asking} onClick={() => {
+                void ask(phase === 'field' ? '어디부터 볼까?' : '다음 시험은 뭐야?', true)
+              }}>{phase === 'field' ? '어디부터 볼까?' : '다음 시험은 뭐야?'}</button>
+              <form className="repair-chat" onSubmit={event => {
+                event.preventDefault()
+                void ask(question)
+              }}>
+                <input aria-label="보이드에게 질문" placeholder="궁금한 점을 물어봐" value={question} maxLength={180} onChange={event => setQuestion(event.target.value)} />
+                <button className="repair-primary" type="submit" disabled={asking || !question.trim()}>보내기</button>
+              </form>
+            </>}
+          </section>
+        )}
+        {sideTab === 'notes' && (
+          <section className="repair-notes" aria-label="정비 수첩">
             {known.length ? <ul>{known.map(id => <li key={id}>{facts[id]}</li>)}</ul> : <p>아직 기록이 없어요. 현장에서 확인한 내용을 여기 적어요.</p>}
             {item.id === 'parade' && known.includes('notes') && <ul>{REPAIR_CASES.filter(candidate => records[candidate.id]).map(candidate => <li key={candidate.id}><b>{candidate.district}</b> {candidate.resolution}</li>)}</ul>}
           </section>
-        </aside>
-      </div>
+        )}
+      </aside>
+
+      {working && (
+        <div className="repair-hud-bottom">
+          {/* 보이드 대사: 게임 대화창처럼 버튼 바로 위에 띄운다 */}
+          <div className="repair-hud-line" role="status">{portrait}<p><b>보이드</b>{fact}</p></div>
+
+          {phase === 'field' && (
+            <div className="repair-hud-actions">
+              <div className="repair-tabs" aria-label="조사 방법">
+                {CATEGORY.filter(type => item.clueList.some(clue => clue.type === type)).map(type => (
+                  <button key={type} aria-pressed={type === category} onClick={() => setCategory(type)}>{type}</button>
+                ))}
+              </div>
+              <div className="repair-action-row" ref={actionRef}>
+                {item.clueList.filter(clue => clue.type === category).map(clue => (
+                  <button key={clue.id} className="repair-action" data-done={known.includes(clue.id)} disabled={running || (clue.id === 'repeat' && !known.includes('run'))} onClick={() => inspect(clue)}>
+                    {clue.label}{known.includes(clue.id) ? ' ✓' : ''}
+                  </button>
+                ))}
+                {evidenceReady && <button className="repair-action repair-action-go" disabled={running} onClick={() => setGuessing(true)}>원인 고르기 →</button>}
+              </div>
+              <span className="repair-evidence">핵심 단서 {evidenceCount} / {item.required.length}</span>
+            </div>
+          )}
+
+          {phase === 'bench' && (
+            <div className="repair-hud-actions">
+              <div className="repair-bench-row">
+                {Object.entries(item.controls).map(([id, spec]) => item.id === 'carousel' ? (
+                  <label key={id} className="repair-control">{spec.label}
+                    <div className="repair-range"><input type="range" min={0} max={spec.options.length - 1} value={settings[id]} disabled={running} aria-valuetext={spec.options[settings[id]]} onChange={event => adjust(id, event.target.value)} /><output>{spec.options[settings[id]]}</output></div>
+                  </label>
+                ) : (
+                  <fieldset key={id} className="repair-control" disabled={running}>
+                    <legend>{spec.label}</legend>
+                    <div className="repair-chips">{spec.options.map((option, index) => (
+                      <button key={option} type="button" aria-pressed={settings[id] === index} onClick={() => adjust(id, index)}>{option}</button>
+                    ))}</div>
+                  </fieldset>
+                ))}
+              </div>
+              <div className="repair-action-row" aria-label="시험 운행">
+                {item.tests.map((label, index) => {
+                  const current = trial?.kind === 'test' && trial.index === index
+                  const status = current && running ? '시험 중…' : verified.includes(index) ? '통과' : current && !trial.ok ? '다시 점검' : '시험하기'
+                  return <button key={label} className="repair-action repair-test" disabled={running} data-status={status} onClick={() => test(index)}>
+                    <strong>{label}</strong><span>{status}</span>
+                  </button>
+                })}
+                <span className="repair-evidence">시험 통과 {verified.length} / {item.tests.length}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 원인 고르기: 장면 위에 뜨는 선택 창 */}
+      {phase === 'field' && guessing && (
+        <div className="repair-overlay" onClick={event => event.target === event.currentTarget && setGuessing(false)}>
+          <fieldset className="repair-hypotheses repair-overlay-card" ref={evidenceReadyRef}>
+            <legend>어디서 문제가 생겼을까?</legend>
+            <p className="repair-overlay-line"><b>보이드</b>{fact}</p>
+            {item.hypotheses.map((label, index) => (
+              <label key={label}><input type="radio" name="repair-hypothesis" checked={hypothesis === index} onChange={() => setHypothesis(index)} />{label}</label>
+            ))}
+            <div className="repair-overlay-buttons">
+              <button className="repair-text-button" onClick={() => setGuessing(false)}>더 조사하기</button>
+              <button className="repair-primary" disabled={running || hypothesis === null} onClick={diagnose}>원인 확인하고 수리하기</button>
+            </div>
+          </fieldset>
+        </div>
+      )}
+
+      {phase === 'complete' && (
+        <div className="repair-overlay">
+          <div className="repair-success repair-overlay-card">
+            <img src={image(item.asset)} alt="" />
+            <h2>{item.id === 'parade' ? '축제가 열렸어요!' : '시설이 다시 움직여요!'}</h2>
+            <p>{item.resolution}</p>
+            {item.part && <p>정비 인증 스탬프 · 해금 부품 <b>{item.part}</b></p>}
+            {item.id === 'parade' && <p>이제 마이룸 컴퓨터에서 정식 정비사 의뢰를 받을 수 있어요.</p>}
+            <button className="repair-primary" onClick={onBack}>{inWorld ? '도로랜드로 돌아가기' : '작업 목록으로'}</button>
+          </div>
+        </div>
+      )}
     </section>
   )
 }
@@ -354,16 +376,9 @@ export function FestivalField({ item, onClose }) {
 
   return (
     <main className="repair-field-screen repair-page" aria-label="보이드와 함께하는 고장 수사대">
-      <header className="repair-field-bar">
-        <div>
-          <strong>보이드와 함께하는 고장 수사대</strong>
-          <button className="repair-field-back" onClick={onClose} title="도로랜드로 돌아가기 (Esc)">← 도로랜드로 돌아가기</button>
-        </div>
-      </header>
-      <div className="repair-field-content">
-        <SavedCase item={item} surface="world" onBack={onClose} />
-        <AssetCredit />
-      </div>
+      <SavedCase item={item} surface="world" onBack={onClose} />
+      <button className="repair-hud-back" onClick={onClose} title="도로랜드로 돌아가기 (Esc)">← 도로랜드로 <kbd>Esc</kbd></button>
+      <AssetCredit />
     </main>
   )
 }
@@ -380,11 +395,11 @@ export function FestivalDesk() {
   const archive = records.parade ? [...REPAIR_CASES, PARADE].filter(item => records[item.id]) : []
   const item = [WORKSHOP, ...archive].find(candidate => candidate.id === active)
   return (
-    <section className="repair-page repair-desk">
+    <section className={`repair-page repair-desk${item ? ' has-case' : ''}`}>
       {item ? (
         <>
-          <button className="repair-text-button" onClick={() => setActive(null)}>← 작업 목록</button>
           <SavedCase item={item} surface="desk" onBack={() => setActive(null)} />
+          <button className="repair-hud-back" onClick={() => setActive(null)}>← 작업 목록</button>
         </>
       ) : (
         <>

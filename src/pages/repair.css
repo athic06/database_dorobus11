@@ -241,3 +241,145 @@
   .repair-field-bar > div { font-size: .75rem; }
   .repair-field-back { padding-inline: .35rem; font-size: .71rem !important; }
 }
+
+/* ---------------- 게임 화면 배치 ----------------
+   2D 장면이 화면 전체를 채우고, 제목(왼쪽 위), 보이드 창(오른쪽), 대사와 버튼(아래)이 그 위에 떠 있다. */
+.repair-field-screen { position: fixed; inset: 0; z-index: 30; overflow: hidden; min-height: 0; }
+.repair-desk.has-case { position: relative; height: 100%; min-height: 520px; padding: 0; overflow: hidden; }
+.repair-stage { --side: clamp(280px, 27vw, 380px); --gap: clamp(10px, 1.4vw, 18px); position: absolute; inset: 0; }
+.repair-stage-scene { position: absolute; inset: 0; }
+.repair-scene-stage { position: absolute; inset: 0; margin: 0; border: 0; border-radius: 0; box-shadow: none; background: #e7d5b7; }
+/* 뒤 채움: 같은 그림을 화면 비율에 맞게 꽉 채우고 흐리게 */
+.repair-stage-fill { position: absolute; inset: -4%; width: 108%; height: 108%; filter: blur(14px) saturate(1.05) brightness(.9); }
+/* 앞 그림: 오른쪽 보이드 창을 뺀 자리에 잘리지 않게 최대한 크게 */
+.repair-stage-main {
+  position: absolute; left: var(--gap); top: 0; bottom: 0;
+  width: calc(100% - var(--side) - var(--gap) * 3); height: 100%;
+  filter: drop-shadow(0 18px 30px #2b211a40);
+}
+.repair-scene-stage figcaption {
+  position: absolute; left: 50%; top: var(--gap); transform: translateX(calc(-50% - var(--side) / 2));
+  min-height: 0; padding: .35rem .8rem; border: 1px solid #b59a7c; border-radius: 999px;
+  background: #fff5e1e6; backdrop-filter: blur(6px);
+}
+
+.repair-hud-title {
+  position: absolute; left: var(--gap); top: var(--gap); z-index: 2; display: flex; gap: .7rem; align-items: center;
+  max-width: calc(100% - var(--side) - var(--gap) * 4); padding: .6rem .85rem .6rem .6rem;
+  border: 1px solid #d9c7adcc; border-radius: 14px; background: #fffaf0e6; box-shadow: 0 8px 22px #3a2b1e26; backdrop-filter: blur(8px);
+}
+.repair-hud-title .repair-case-portrait { width: 52px; grid-row: auto; }
+.repair-hud-title h2 { margin: 0; font-size: clamp(1.1rem, 2vw, 1.5rem); line-height: 1.2; letter-spacing: -.03em; }
+.repair-hud-title .repair-kicker { margin-bottom: .1rem; }
+.repair-hud-title .repair-steps { display: flex; gap: .35rem; margin: .4rem 0 0; padding: 0; list-style: none; }
+.repair-hud-title .repair-steps li { min-height: 0; padding: .18rem .5rem; font-size: .72rem; border-radius: 999px; }
+
+.repair-hud-side {
+  position: absolute; top: calc(var(--gap) + 52px); right: var(--gap); bottom: var(--gap); z-index: 2; width: var(--side);
+  display: flex; flex-direction: column; overflow: hidden;
+  border: 1px solid #d9c7adcc; border-top: 4px solid #8f735b; border-radius: 6px 6px 14px 14px;
+  background: #fffaf0f0; box-shadow: 0 12px 30px #3a2b1e33; backdrop-filter: blur(10px);
+}
+.repair-side-tabs { display: flex; border-bottom: 1px solid var(--rule); }
+.repair-side-tabs button { flex: 1; padding: .7rem .4rem; border: 0; background: transparent; color: var(--muted); font-weight: 800; cursor: pointer; }
+.repair-side-tabs button[aria-selected="true"] { color: var(--ink); box-shadow: inset 0 -3px var(--green); }
+.repair-side-tabs span { margin-left: .2rem; font-size: .75rem; color: var(--muted); }
+.repair-hud-side .repair-conversation { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: .8rem; gap: .5rem; }
+.repair-hud-side .repair-chat-log { flex: 1; min-height: 0; max-height: none; overflow: auto; }
+.repair-hud-side .repair-notes { flex: 1; overflow: auto; padding: .9rem 1rem; }
+
+.repair-hud-back {
+  position: absolute; top: var(--gap, 14px); right: var(--gap, 14px); z-index: 4; display: inline-flex; align-items: center; gap: .4rem;
+  min-height: 40px; padding: .4rem .8rem; border: 1px solid #ffffff55; border-radius: 999px;
+  background: #2f3d33e6; color: #fff6e5; font-weight: 800; cursor: pointer; backdrop-filter: blur(6px);
+}
+.repair-field-screen .repair-hud-back { top: clamp(10px, 1.4vw, 18px); right: clamp(10px, 1.4vw, 18px); }
+.repair-hud-back kbd { padding: 0 .3rem; border-radius: 4px; background: #ffffff22; font-size: .72rem; }
+
+.repair-hud-bottom {
+  position: absolute; left: var(--gap); bottom: var(--gap); z-index: 2;
+  width: calc(100% - var(--side) - var(--gap) * 3); display: flex; flex-direction: column; gap: .55rem;
+}
+.repair-hud-line {
+  display: flex; gap: .65rem; align-items: center; max-width: 760px; padding: .55rem .9rem .55rem .55rem;
+  border: 1px solid #d9c7adcc; border-radius: 14px; background: #fffaf0f0; box-shadow: 0 8px 22px #3a2b1e2e; backdrop-filter: blur(8px);
+  animation: repair-pop .25s ease both;
+}
+.repair-hud-line .repair-case-portrait { width: 44px; padding: .2rem; grid-row: auto; }
+.repair-hud-line p { margin: 0; line-height: 1.45; }
+.repair-hud-line b { display: block; color: var(--green); font-size: .75rem; }
+.repair-hud-actions {
+  display: flex; flex-direction: column; gap: .5rem; padding: .6rem; border: 1px solid #d9c7adcc; border-radius: 14px;
+  background: #fffaf0e6; box-shadow: 0 8px 22px #3a2b1e2e; backdrop-filter: blur(8px);
+}
+.repair-hud-actions .repair-tabs { display: flex; align-items: center; gap: .3rem; margin: 0; }
+.repair-evidence { margin-left: auto; color: var(--muted); font-size: .78rem; font-weight: 750; }
+.repair-action-row { display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; }
+.repair-action {
+  min-height: 46px; padding: .5rem .95rem; border: 1px solid #b59a7c; border-radius: 10px;
+  background: #fff; color: var(--ink); font-weight: 750; cursor: pointer; box-shadow: 0 3px #d9c7ad;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.repair-action:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 5px #d9c7ad; }
+.repair-action[data-done="true"] { background: #eef4ec; border-color: #9fb79f; }
+.repair-action-go { background: var(--green); border-color: var(--green); color: #fff9ee; box-shadow: 0 3px #2b3d2f; }
+.repair-test { display: flex; flex-direction: column; align-items: flex-start; gap: .1rem; }
+.repair-test span { font-size: .72rem; color: var(--muted); }
+.repair-test[data-status="통과"] { background: #eef4ec; border-color: #9fb79f; }
+.repair-bench-row { display: flex; flex-wrap: wrap; gap: .5rem; }
+.repair-control { margin: 0; padding: .4rem .6rem; border: 1px solid var(--rule); border-radius: 10px; background: #fff; font-weight: 750; font-size: .82rem; }
+.repair-control legend { padding: 0 .2rem; }
+.repair-chips { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .25rem; }
+.repair-chips button { padding: .35rem .6rem; border: 1px solid var(--rule); border-radius: 999px; background: var(--card); cursor: pointer; font-size: .8rem; }
+.repair-chips button[aria-pressed="true"] { background: var(--green); border-color: var(--green); color: #fff9ee; }
+
+.repair-overlay { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; background: #1f1a1466; animation: repair-fade .2s ease both; }
+.repair-overlay-card {
+  width: min(520px, calc(100% - 2rem)); margin: 0; padding: 1.1rem 1.2rem; border: 1px solid var(--rule); border-radius: 16px;
+  background: var(--card); box-shadow: 0 24px 60px #00000040; animation: repair-pop .28s cubic-bezier(.2,.8,.2,1) both;
+}
+.repair-overlay-line { margin: 0 0 .6rem; color: var(--muted); }
+.repair-overlay-line b { margin-right: .4rem; color: var(--green); }
+.repair-overlay-buttons { display: flex; justify-content: flex-end; gap: .5rem; margin-top: .8rem; }
+@keyframes repair-pop { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes repair-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* 마이룸 컴퓨터 안에서는 화면이 작으니 오른쪽 창을 좁게 */
+.repair-desk.has-case .repair-stage { --side: clamp(240px, 30%, 330px); }
+.repair-field-screen .repair-credit { position: absolute; right: clamp(10px, 1.4vw, 18px); bottom: 2px; z-index: 3; margin: 0; padding: 0; font-size: .62rem; opacity: .7; }
+
+/* 좁은 화면: 보이드 창을 아래로 내리고 장면은 위쪽에 */
+@media (max-width: 760px) {
+  .repair-stage { --side: 0px; }
+  .repair-stage-main { width: calc(100% - var(--gap) * 2); height: 45%; }
+  .repair-hud-side { top: auto; left: var(--gap); width: auto; height: 30%; }
+  .repair-hud-bottom { width: calc(100% - var(--gap) * 2); bottom: calc(30% + var(--gap) * 2); }
+  .repair-hud-title { max-width: calc(100% - var(--gap) * 2 - 120px); }
+}
+@media (prefers-reduced-motion: reduce) { .repair-hud-line, .repair-overlay, .repair-overlay-card { animation: none; } }
+
+/* 장면 그림 자리: 오른쪽 보이드 창과 아래 버튼 줄을 피해 그 사이를 꽉 채운다 (예전 .repair-scene svg 규칙보다 우선) */
+.repair-scene.repair-scene-stage .repair-stage-main {
+  left: var(--gap); top: 64px; bottom: auto;
+  width: calc(100% - var(--side) - var(--gap) * 3); height: calc(100% - 64px - var(--bottom, 150px));
+}
+.repair-scene.repair-scene-stage .repair-stage-fill { width: 108%; }
+.repair-stage { --side: clamp(260px, 24vw, 340px); --bottom: 150px; }
+/* 아래 버튼: 조사 방법 탭과 버튼을 한 줄로 */
+.repair-hud-actions { flex-direction: row; flex-wrap: wrap; align-items: center; gap: .5rem .8rem; padding: .5rem .6rem; }
+.repair-hud-actions .repair-tabs { flex: none; border: 0; }
+.repair-hud-actions .repair-action-row { flex: 1; }
+.repair-hud-actions .repair-evidence { margin-left: auto; white-space: nowrap; }
+.repair-hud-actions .repair-tabs .repair-evidence { display: none; }
+/* 장면 가장자리를 뒤 배경으로 부드럽게 녹여, 창이 아니라 화면 전체가 하나의 장면처럼 보이게 */
+.repair-scene.repair-scene-stage .repair-stage-main {
+  filter: none;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 6%, #000 94%, transparent 100%), linear-gradient(to bottom, transparent 0, #000 8%, #000 92%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to right, transparent 0, #000 6%, #000 94%, transparent 100%), linear-gradient(to bottom, transparent 0, #000 8%, #000 92%, transparent 100%);
+  mask-composite: intersect;
+}
+.repair-scene.repair-scene-stage .repair-stage-fill { filter: blur(10px) saturate(1.05) brightness(.96); }
+/* 선택 창 제목을 테두리 선 위가 아니라 카드 안쪽에 */
+.repair-overlay-card > legend { float: left; width: 100%; margin: 0 0 .5rem; padding: 0; font-size: 1.15rem; font-weight: 800; }
+.repair-overlay-card > legend + * { clear: both; }

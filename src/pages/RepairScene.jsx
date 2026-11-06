@@ -291,7 +291,7 @@ const locations = {
   delivery: '작업실 포장대',
 }
 
-export default function RepairScene({ item, settings, trial, inspected, field, finished = false }) {
+export default function RepairScene({ item, settings, trial, inspected, field, finished = false, stage = false }) {
   const [frame, setFrame] = useState(null)
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   const animate = Boolean(trial && !reduceMotion && !finished)
@@ -316,13 +316,22 @@ export default function RepairScene({ item, settings, trial, inspected, field, f
   const status = testing ? progress < 1 ? '시험 중' : trial.ok ? '통과' : '재점검'
     : trial && progress < 1 ? '작동 중' : null
 
+  const art = <>
+    {item.id !== 'coaster' && item.id !== 'sign' && <RepairSet id={item.id} />}
+    <Scene settings={settings} trial={trial} inspected={inspected} field={field} progress={progress} />
+  </>
+  const caption = <figcaption><span>{locations[item.id]}</span>{status && <b data-failed={testing && progress >= 1 && !trial.ok}>{status}</b>}</figcaption>
+  if (stage) return (
+    <figure className={`repair-scene repair-scene-stage repair-scene-${item.id}`}>
+      <svg className="repair-stage-fill" viewBox="0 0 420 158" preserveAspectRatio="xMidYMid slice" aria-hidden="true">{art}</svg>
+      <svg className="repair-stage-main" viewBox="0 0 420 158" preserveAspectRatio="xMidYMid meet" role="img" aria-label={`${item.district} 장치 작동 그림`}>{art}</svg>
+      {caption}
+    </figure>
+  )
   return (
     <figure className={`repair-scene repair-scene-${item.id}`}>
-      <svg viewBox="0 0 420 158" role="img" aria-label={`${item.district} 장치 작동 그림`}>
-        {item.id !== 'coaster' && item.id !== 'sign' && <RepairSet id={item.id} />}
-        <Scene settings={settings} trial={trial} inspected={inspected} field={field} progress={progress} />
-      </svg>
-      <figcaption><span>{locations[item.id]}</span>{status && <b data-failed={testing && progress >= 1 && !trial.ok}>{status}</b>}</figcaption>
+      <svg viewBox="0 0 420 158" role="img" aria-label={`${item.district} 장치 작동 그림`}>{art}</svg>
+      {caption}
     </figure>
   )
 }
