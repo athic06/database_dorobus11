@@ -719,7 +719,8 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .pc-screen { min-height: 380px; padding: 18px; background: linear-gradient(160deg, #3e7be0, #6a4fc9); display: flex; justify-content: center; align-items: flex-start; }
 .pc-desktop { width: 100%; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .pc-app { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 18px 10px; border: 0; border-radius: 14px; background: rgba(255, 255, 255, 0.16); color: #fff; cursor: pointer; }
-.pc-app:hover { background: rgba(255, 255, 255, 0.28); }
+.pc-app:not(:disabled):hover { background: rgba(255, 255, 255, 0.28); }
+.pc-app:disabled { cursor: not-allowed; background: rgba(255, 255, 255, 0.08); }
 .pc-icon { font-size: 40px; }
 .pc-app small { opacity: 0.85; }
 .pc-app-body { width: 100%; max-height: 60vh; overflow: auto; border-radius: 12px; background: #fff; padding: 12px; }

@@ -156,6 +156,14 @@ export const WORKSHOP = {
 
 export const PARADE_STAMP_TARGET = 4
 
+export function countFestivalRepairs(records) {
+  return REPAIR_CASES.filter(item => records?.[item.id]).length
+}
+
+export function hasRemoteRepairLicense(records) {
+  return Boolean(records?.[PARADE.id]) && countFestivalRepairs(records) === REPAIR_CASES.length
+}
+
 export function trialResult(repairCase, settings, index) {
   const keys = repairCase.testControls?.[index] ?? Object.keys(repairCase.controls)
   return keys.every(key => settings[key] === repairCase.controls[key].target)

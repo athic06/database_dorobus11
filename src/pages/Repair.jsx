@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useStore } from '../store.jsx'
-import { PARADE, PARADE_STAMP_TARGET, REPAIR_CASES, WORKSHOP, trialResult } from '../game/repairCases.js'
+import { countFestivalRepairs, hasRemoteRepairLicense, PARADE, REPAIR_CASES, WORKSHOP, trialResult } from '../game/repairCases.js'
 import { replyFromIntent, voidReply } from '../game/voidRepair.js'
 import RepairScene from './RepairScene.jsx'
 import FixMission from '../missions/FixMission.jsx'
@@ -56,6 +56,7 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
   const timer = useRef(null)
   const pendingQuestion = useRef(null)
   const completed = useRef(false)
+  const licensedAtEntry = useRef(hasRemoteRepairLicense(records))
   const titleRef = useRef(null)
   const actionRef = useRef(null)
   const evidenceReadyRef = useRef(null)
@@ -64,6 +65,8 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
   const noteCount = known.length
   const canHypothesize = known.length >= MIN_OBSERVATIONS
   const inWorld = surface === 'world'
+  const licensed = hasRemoteRepairLicense(records)
+  const earnedLicense = inWorld && licensed && !licensedAtEntry.current
   const working = phase === 'field' || phase === 'bench'
   const activeStep = ['field', 'bench', 'complete'].indexOf(phase)
   const portrait = <img className="repair-case-portrait" src={`${import.meta.env.BASE_URL}portraits/void.svg`} alt="보이드" />
@@ -416,12 +419,13 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
             {!myHypothesis && <p>{item.resolution}</p>}
             {tries > 1 && <p className="repair-tries">가설을 {tries}번 고쳐 세우며 찾아냈어요!</p>}
             {item.part && <p>정비 인증 스탬프 · 해금 부품 <b>{item.part}</b></p>}
-            {item.id === 'parade' && (
+            {earnedLicense && (
               <div className="repair-license">
                 <span aria-hidden="true">🪪</span>
-                <div><b>원격 수리 자격증을 받았어요!</b><p>이제 마이룸 컴퓨터의 ‘원격 수리실’에서 도로랜드 시설을 원격으로 고칠 수 있어요.</p></div>
+                <div><b>원격 수리 자격증을 받았어요!</b><p>마이룸 컴퓨터의 ‘원격 수리실’에서 새 의뢰를 받을 수 있어요.</p></div>
               </div>
             )}
+            {item.id === PARADE.id && !licensed && <p>원격 수리 자격증을 받으려면 남은 축제 시설 {REPAIR_CASES.length - countFestivalRepairs(records)}곳도 고쳐야 해요.</p>}
             <button className="repair-primary" onClick={onBack}>{inWorld ? '도로랜드로 돌아가기' : '작업 목록으로'}</button>
           </div>
         </div>
@@ -443,8 +447,6 @@ function SavedCase({ item, surface, onBack }) {
     }))}
     onComplete={() => setProgress(current => ({
       festivalRepairs: { ...current.festivalRepairs, [item.id]: true },
-      // 스토리 수리를 모두 마치면(개막 퍼레이드) 원격 수리 자격증
-      ...(item.id === 'parade' ? { remoteLicense: true } : {}),
     }))}
   />
 }
@@ -471,18 +473,16 @@ function AssetCredit() {
   return <footer className="repair-credit">아이콘 <a href="https://openmoji.org/">OpenMoji</a> · <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>, 배경과 소품 <a href="https://kenney.nl/">Kenney</a> CC0, 버거 재료 <a href="https://davemarian.itch.io/food-and-ingredients-assets-from-gamejam">Dave Marian</a></footer>
 }
 
-// 마이룸 컴퓨터의 원격 수리실. 스토리 수리를 모두 마쳐 원격 수리 자격증을 받으면 열린다.
-// 자격증이 있으면 도로랜드에 가지 않고도 오늘 고장 난 시설을 고치고, 원격 의뢰를 받을 수 있다.
 export function FestivalDesk() {
   const { user, progress } = useStore()
   const [active, setActive] = useState(null)
   const [fixing, setFixing] = useState(null)
   const records = progress.festivalRepairs ?? emptyRecords
-  const stamps = REPAIR_CASES.filter(item => records[item.id]).length
-  const licensed = progress.remoteLicense || !!records.parade
-  const archive = licensed ? [...REPAIR_CASES, PARADE].filter(item => records[item.id]) : []
+  if (!hasRemoteRepairLicense(records)) return null
+
+  const archive = [...REPAIR_CASES, PARADE]
   const item = [WORKSHOP, ...archive].find(candidate => candidate.id === active)
-  const faults = licensed && progress.carCheckDone ? pendingFaults(user.id, progress.work) : []
+  const faults = progress.carCheckDone ? pendingFaults(user.id, progress.work) : []
   return (
     <section className={`repair-page repair-desk${item ? ' has-case' : ''}`}>
       {item ? (
@@ -494,52 +494,40 @@ export function FestivalDesk() {
         <>
           <p className="repair-kicker">DORO OS / 마이룸</p>
           <h2>원격 수리실</h2>
-          {!licensed ? (
-            <div className="repair-locked">
-              <span aria-hidden="true">🔒</span>
-              <div>
-                <b>원격 수리 자격증이 필요해요</b>
-                <p>도로랜드에서 축제 시설을 고치고(스탬프 {stamps}/{PARADE_STAMP_TARGET}) 개막 퍼레이드까지 마치면 자격증을 받아요. 그다음부터는 여기서도 수리할 수 있어요.</p>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="repair-license">
-                <span aria-hidden="true">🪪</span>
-                <div><b>원격 수리 자격증</b><p>{user.name} · 도로랜드 정비 인증 스탬프 {stamps}/{REPAIR_CASES.length}</p></div>
-              </div>
-              <h3>오늘 고장 난 시설</h3>
-              {faults.length ? (
-                <div className="repair-cards">
-                  {faults.map(id => (
-                    <button key={id} className="repair-card repair-card-fault" onClick={() => setFixing(id)}>
-                      <strong>⚠ {BREAKABLE[id].name}</strong>
-                      <span>{BREAKABLE[id].fault}</span>
-                      <span>원격으로 수리하기</span>
-                    </button>
-                  ))}
-                </div>
-              ) : <p>오늘 고장 난 시설은 모두 고쳤어요.</p>}
-              <h3>원격 의뢰</h3>
-              <div className="repair-cards">
-                <button className="repair-card" onClick={() => setActive(WORKSHOP.id)}>
-                  <img src={image(WORKSHOP.asset)} alt="" />
-                  <strong>{WORKSHOP.title}</strong>
-                  <span>{records.delivery ? '완료 기록 보기' : progress.festivalInvestigations?.delivery ? '작업 이어하기' : '새 의뢰 시작'}</span>
+          <div className="repair-license">
+            <span aria-hidden="true">🪪</span>
+            <div><b>원격 수리 자격증</b><p>{user.name} · 도로랜드 축제 정비 완료</p></div>
+          </div>
+          <h3>원격 의뢰</h3>
+          <div className="repair-cards">
+            <button className="repair-card" onClick={() => setActive(WORKSHOP.id)}>
+              <img src={image(WORKSHOP.asset)} alt="" />
+              <strong>{WORKSHOP.title}</strong>
+              <span>{records.delivery ? '완료 기록 보기' : progress.festivalInvestigations?.delivery ? '작업 이어하기' : '새 의뢰 시작'}</span>
+            </button>
+          </div>
+          <h3>오늘 고장 난 시설</h3>
+          {faults.length ? (
+            <div className="repair-cards">
+              {faults.map(id => (
+                <button key={id} className="repair-card repair-card-fault" onClick={() => setFixing(id)}>
+                  <strong>⚠ {BREAKABLE[id].name}</strong>
+                  <span>{BREAKABLE[id].fault}</span>
+                  <span>원격으로 수리하기</span>
                 </button>
-              </div>
-              <h3>축제 시설 수리 기록</h3>
-              <div className="repair-cards">
-                {archive.map(candidate => (
-                  <button key={candidate.id} className="repair-card" onClick={() => setActive(candidate.id)}>
-                    <img src={image(candidate.asset)} alt="" />
-                    <strong>{candidate.title}</strong>
-                    <span>완료 기록 보기</span>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
+              ))}
+            </div>
+          ) : <p>오늘 고장 난 시설은 모두 고쳤어요.</p>}
+          <h3>축제 시설 수리 기록</h3>
+          <div className="repair-cards">
+            {archive.map(candidate => (
+              <button key={candidate.id} className="repair-card" onClick={() => setActive(candidate.id)}>
+                <img src={image(candidate.asset)} alt="" />
+                <strong>{candidate.title}</strong>
+                <span>완료 기록 보기</span>
+              </button>
+            ))}
+          </div>
         </>
       )}
       {fixing && <FixMission id={fixing} onClose={() => setFixing(null)} onFixed={() => setFixing(null)} />}

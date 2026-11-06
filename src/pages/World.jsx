@@ -39,7 +39,7 @@ import { useProximity } from '../game/useProximity.js'
 import { FACILITY_GOAL, VOID_PARTS, harmoniaStopped, rikoMissing, storyDone } from '../game/progress.js'
 import { useStore } from '../store.jsx'
 import { FestivalField } from './Repair.jsx'
-import { PARADE, PARADE_STAMP_TARGET, REPAIR_CASES } from '../game/repairCases.js'
+import { countFestivalRepairs, PARADE, PARADE_STAMP_TARGET, REPAIR_CASES } from '../game/repairCases.js'
 
 const ROAD_SEGMENTS = ALL_ROAD_SEGMENTS
 const XYLO_POS = [7, 0, 52]
@@ -253,7 +253,7 @@ export default function World() {
   const [mission, setMission] = useState(null)
   const [festivalId, setFestivalId] = useState(null)
   const festivalRecords = p.festivalRepairs ?? {}
-  const festivalStamps = REPAIR_CASES.filter(item => festivalRecords[item.id]).length
+  const festivalStamps = countFestivalRepairs(festivalRecords)
   const festivalCases = festivalStamps >= PARADE_STAMP_TARGET ? [...REPAIR_CASES, PARADE] : REPAIR_CASES
   const festivalItem = festivalCases.find(item => item.id === festivalId)
   const [codex, setCodex] = useState(false) // 'silhouette' | 'revealed' | false
