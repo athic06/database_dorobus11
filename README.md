@@ -59,4 +59,4 @@ npm run dev
 
 시연에서 보이드에게 쓴 질문과 확인된 사건 단서만 Gemini로 전달한다. 성인 시연에서는 가상의 질문을 사용한다. Gemini는 조사 의도와 단서 ID만 반환하며 수리 판정과 진행은 게임에서 계산한다. 질문 아래 **Gemini 시연** 또는 **기본 안내** 표시로 응답 경로를 확인한다. 시연 API는 루프백 Vite 개발 서버에만 등록된다.
 
-삽화: [OpenMoji 17.0.0](https://github.com/hfg-gmuend/openmoji/tree/17.0.0), [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). 원본 SVG와 라이선스는 `public/repair/openmoji`에 있다. 회전 바이킹, 푸드코트, 사파리 차량, 축제 무대의 3D 소품은 Kenney의 CC0 모델을 사용한다. 원본 모델과 출처는 `public/models/festival`에 있다.
+삽화: [OpenMoji 17.0.0](https://github.com/hfg-gmuend/openmoji/tree/17.0.0), [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). 원본 SVG와 라이선스는 `public/repair/openmoji`에 있다. 고장 수사대 2D 장면의 배경(하늘, 풀밭, 나무, 구름), 컨베이어, 톱니, 상자, 경광등, 선물 상자, 구슬은 [Kenney](https://kenney.nl/)의 CC0 스프라이트(Background Elements Remastered, Platformer Pack Industrial, Shooting Gallery, Platformer Assets Holiday)를 여백만 잘라 쓴다. 파일과 라이선스는 `public/repair/kenney`에 있다. 회전 바이킹, 푸드코트, 사파리 차량, 축제 무대의 3D 소품은 Kenney의 CC0 모델을 사용한다. 원본 모델과 출처는 `public/models/festival`에 있다.

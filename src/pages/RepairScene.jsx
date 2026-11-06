@@ -1,11 +1,23 @@
 import { useEffect, useState } from 'react'
-import RepairSet from './RepairSet.jsx'
+import RepairSet, { Sprite } from './RepairSet.jsx'
+
+// 장면 속 물건은 무료 에셋이다.
+// Kenney(CC0): 컨베이어, 톱니, 상자, 경광등, 화살표, 선물 상자, 구슬 (public/repair/kenney)
+// OpenMoji(CC BY-SA 4.0): 트럭, 회전목마 말, 열차 칸, 배터리, 풍선, 솜사탕 가게, 서커스 무대, 플러그, 공사 표지 (public/repair/openmoji)
+// 선과 길(레일, 도로, 전선)만 직접 그린다.
+// 조사 단계(field)에서는 아이가 직접 살펴본 단서(known)만 그림에 드러난다. 정답이 될 만한 표시는 미리 보여 주지 않는다.
 
 const gold = '#d6a14f'
 const mint = '#486957'
 const coral = '#a84435'
 const ink = '#302c24'
 const clamp = (value) => Math.min(1, Math.max(0, value))
+const EMOJI = (id) => `${import.meta.env.BASE_URL}repair/openmoji/${id}.svg`
+
+function Emoji({ id, x, y, size, flip = false, opacity }) {
+  return <image href={EMOJI(id)} x={x - size / 2} y={y - size / 2} width={size} height={size} opacity={opacity}
+    transform={flip ? `translate(${2 * x} 0) scale(-1 1)` : undefined} />
+}
 
 function Caption({ x, y = 143, color = ink, children }) {
   return <text x={x} y={y} fill={color} textAnchor="middle" className="repair-scene-text">{children}</text>
@@ -21,33 +33,30 @@ function route(points) {
   return points.map(([x, y]) => [x, y + 10].join(',')).join(' ')
 }
 
-function Box({ x, y, color = gold }) {
-  return <g transform={`translate(${x} ${y})`}>
-    <rect x="-9" y="-8" width="18" height="16" rx="3" fill={color} />
-    <path d="M0-8v6m-9 1h18" stroke={ink} strokeOpacity=".55" />
-  </g>
+// 선물 상자(Kenney)
+function Box({ x, y, color = 'yellow', size = 18 }) {
+  return <Sprite name={`present_large_${color}`} x={x - size / 2} y={y - size / 2} w={size} />
 }
 
-function Truck({ point, color = gold, cargo = false, tilt = 0 }) {
+// 트럭(OpenMoji). 원래 왼쪽을 보고 있어서 오른쪽으로 뒤집는다.
+function Truck({ point, cargo = false, tilt = 0, size = 44 }) {
   return <g transform={`translate(${point.join(' ')}) rotate(${tilt})`}>
-    <path d="M-25-3h29v-13h13l9 10v13h-51z" fill={color} />
-    <path d="M9-12h6l6 7H9z" fill={ink} />
-    <circle cx="-15" cy="8" r="5" fill="#0c2525" stroke="#c3e3d5" strokeWidth="2" />
-    <circle cx="15" cy="8" r="5" fill="#0c2525" stroke="#c3e3d5" strokeWidth="2" />
-    {cargo && <Box x={-12} y={-12} color={coral} />}
+    {cargo && <Box x={-9} y={-9} color="red" size={16} />}
+    <Emoji id="1F69A" x={0} y={-4} size={size} flip />
   </g>
 }
 
-function Belt({ x = 28, y = 102, width = 364, reverse = false }) {
+// 컨베이어 벨트(Kenney 산업 타일). arrows가 false면 방향 표시를 숨긴다.
+function Belt({ x = 28, y = 102, width = 364, reverse = false, arrows = true }) {
+  const h = 13
+  const tile = (70 * h) / 22
+  const middle = Math.max(0, Math.ceil((width - 2 * tile) / tile))
   return <g>
-    <rect x={x + 12} y={y + 9} width={width - 24} height="12" fill="#94785c" />
-    <rect x={x} y={y} width={width} height="13" rx="6.5" fill="#53635a" stroke="#4d473b" />
-    <path d={`M${x + 8} ${y + 3}h${width - 16}`} stroke="#91a198" strokeWidth=".8" />
-    <circle cx={x + 7} cy={y + 6.5} r="2.5" fill="#e5d2ab" />
-    <circle cx={x + width - 7} cy={y + 6.5} r="2.5" fill="#e5d2ab" />
-    {[.18, .38, .62, .82].map(ratio => <path key={ratio}
-      d="M-3-3 1 0-3 3" fill="none" stroke="#e5d2ab" strokeWidth="1.2"
-      transform={`translate(${x + width * ratio} ${y + 7}) scale(${reverse ? -1 : 1} 1)`} />)}
+    {Array.from({ length: middle }, (_, i) => <Sprite key={i} name="industrial_036" x={x + tile + i * tile} y={y} w={Math.min(tile, width - tile - (tile + i * tile)) + 0.5} h={h} />)}
+    <Sprite name="industrial_035" x={x} y={y} w={tile} h={h} />
+    <Sprite name="industrial_037" x={x + width - tile} y={y} w={tile} h={h} />
+    {arrows && [.25, .5, .75].map(ratio => <Sprite key={ratio} name={reverse ? 'industrial_098' : 'industrial_070'}
+      x={x + width * ratio - 5} y={y - 11} w={10} />)}
   </g>
 }
 
@@ -73,22 +82,18 @@ function BurgerLine({ x, width, label, extra, early, diverted, progress }) {
   const current = progress > 0 && progress < .98 ? ingredients[order[Math.min(order.length - 1, Math.floor(step))]] : null
   const center = x + width / 2
   return <g>
-    <path d={`M${center - 44} 9h88v22h-88z`} fill="#fff8df" stroke="#b7946f" strokeWidth=".7" />
-    <Caption x={center} y={24} color={progress >= .98 && (early || diverted) ? coral : ink}>{label}</Caption>
-    <g transform={`translate(${center} 0)`}>
-      <path d="M-30 37h60l-8 9H-23z" fill="#a2a69a" stroke="#5e5e50" />
-      <path d="M-22 45h44v5h-44z" fill="#69746a" />
-      <circle cx="24" cy="41" r="1.8" fill="#f9d273" />
-    </g>
-    <Belt x={x + 5} y={105} width={width - 10} />
-    <path d={`M${center - 34} 103h68l-5 5h-58z`} fill="#f2e8ce" stroke="#766653" strokeWidth=".75" />
+    <rect x={center - 44} y="11" width="88" height="20" rx="5" fill="#fff8df" opacity=".9" />
+    <Caption x={center} y={25} color={progress >= .98 && (early || diverted) ? coral : ink}>{label}</Caption>
+    {/* 재료 투입기: Kenney 산업 기계 */}
+    <Sprite name="industrial_031" x={center - 13} y={30} w={26} />
+    <Belt x={x + 5} y={105} width={width - 10} arrows={false} />
     {order.map((id, index) => {
       const move = clamp(step - index)
       if (move <= 0) return null
       const side = id === 'greens' && diverted
       const xPosition = center + (side ? Math.min(width / 2 - 22, 145) * move * move : 0)
       const stack = diverted && id === 'top' ? index - 1 : index
-      const y = 51 + ((side ? 101 : 99 - stack * 9) - 51) * move * move
+      const y = 58 + ((side ? 101 : 99 - stack * 9) - 58) * move * move
       return <g key={id} transform={`translate(${xPosition} ${y}) rotate(${side ? 16 * move : 0})`}>
         <Ingredient id={id} />
       </g>
@@ -99,7 +104,7 @@ function BurgerLine({ x, width, label, extra, early, diverted, progress }) {
   </g>
 }
 
-function Food({ settings, trial, inspected, field, progress }) {
+function Food({ settings, trial, inspected, field, known, progress }) {
   const early = field ? inspected !== 'delay' : settings.timing === 0
   const diverted = !early && (field || settings.junction !== 2)
   if (field && inspected === 'run') return <>
@@ -109,173 +114,209 @@ function Food({ settings, trial, inspected, field, progress }) {
   </>
   const extra = field || trial?.index !== 0
   const branchX = [104, 241, 301][settings.junction]
+  // 갈림길이 어디로 열려 있는지는 설치 기록이나 치즈 늦추기를 해 봐야 보인다
+  const showBranch = extra && (!field || known.includes('npc') || known.includes('delay'))
   return <>
-    {extra && <path d={diverted ? 'M245 76h66l61 23' : `M${branchX} 64v23h${branchX < 210 ? 63 : -55}`}
+    {showBranch && <path d={diverted ? 'M245 76h66l61 23' : `M${branchX} 64v23h${branchX < 210 ? 63 : -55}`}
       stroke={diverted ? '#a85c45' : '#a38a5b'} strokeWidth="5" strokeDasharray="4 5" fill="none" opacity=".6" />}
+    {showBranch && <Sprite name="industrial_067" x={(diverted ? 245 : branchX) - 8} y={(diverted ? 76 : 64) - 8} w={16} />}
     <BurgerLine x={22} width={376} label={field && !inspected ? '조리대' : inspected === 'delay' ? '치즈 늦게 넣기' : extra ? '치즈 추가' : '기본 주문'}
       extra={extra} early={extra && early} diverted={extra && diverted} progress={progress} />
   </>
 }
 
-function Carousel({ settings, trial, inspected, progress }) {
+// 받침대는 Kenney 나무 상자를 칸 수만큼 쌓아 보여 준다
+function Pillar({ x, blocks, top }) {
+  return <g>{Array.from({ length: blocks }, (_, i) => <Sprite key={i} name="industrial_029" x={x - 6} y={top - (i + 1) * 9} w={12} h={9} />)}</g>
+}
+
+function Carousel({ settings, trial, field, known, progress }) {
   const level = settings.height - 4
-  const pad = 113 - level * 4
   const spin = trial ? progress * (trial.ok ? 2 : .88) * Math.PI : 0
+  // 받침대 높이는 직접 재 보기 전에는 덤불에 가려 있다
+  const measured = !field || known.includes('height')
   return <>
     <path d="M92 126h237" stroke="#688d80" strokeWidth="3" />
-    {[105, 213, 320].map((x, i) => <g key={x}>
-      <rect x={x - 7} y={i === 1 ? pad - 25 : 88} width="14" height={i === 1 ? 151 - pad : 38}
-        rx="3" fill={i === 1 ? gold : '#75a493'} />
-      <Caption x={x} y={145} color={i === 1 ? gold : mint}>{['A · 4칸', `B · ${settings.height}칸`, 'C · 4칸'][i]}</Caption>
-    </g>)}
+    {/* 직접 재기 전에는 받침대가 덤불에 가려 있다 */}
+    {!measured && [86, 160, 236, 300].map((x) => <Sprite key={x} name="bushAlt1" x={x} y={100} w={44} />)}
+    {measured && [105, 213, 320].map((x, i) => {
+      const blocks = i === 1 ? settings.height : 4
+      return <g key={x}>
+        <Pillar x={x} blocks={blocks} top={126} />
+        <Caption x={x} y={145} color={i === 1 ? gold : mint}>{`${'ABC'[i]} ${blocks}칸`}</Caption>
+      </g>
+    })}
     <g transform={`rotate(${-level * 3} 210 84)`}>
-      <ellipse cx="210" cy="86" rx="123" ry="17" fill="#a97259" stroke="#704938" strokeWidth="2" />
-      <path d="M210 29v54m-72-32 72-28 72 28z" fill="#f2ce8a" stroke="#79493a" strokeWidth="2" strokeLinejoin="round" />
-      <path d="m138 51 72-28-34 28zm56 0 16-28 18 28zm51 0-35-28 72 28z" fill="#b95e50" />
-      <path d="M141 51q7 8 14 0 7 8 14 0 7 8 14 0 7 8 14 0 7 8 14 0 7 8 14 0 7 8 14 0 7 8 14 0 7 8 14 0 7 8 14 0" fill="none" stroke="#9d5948" strokeWidth="1.5" />
+      <ellipse cx="210" cy="86" rx="123" ry="12" fill="#a97259" stroke="#704938" strokeWidth="2" />
+      <path d="M210 33v52" stroke="#b87e42" strokeWidth="3" />
+      <Sprite name="curtain_straight" x={130} y={36} w={160} h={20} />
+      <path d="M128 37 210 18l82 19z" fill="#e7c27a" stroke="#79493a" strokeWidth="1.5" strokeLinejoin="round" />
       {[0, 1, 2, 3].map(i => {
         const phase = spin + i * Math.PI / 2
         const x = 210 + Math.cos(phase) * 92
-        const y = 72 + Math.sin(phase) * 9
+        const y = 70 + Math.sin(phase) * 7
         return <g key={i} transform={`translate(${x} ${y})`}>
-          <path d="M0-12v24" stroke="#b87e42" />
-          <path d="M-13 2q2-5 8-3l9 1 5-8 3 4 5 3-1 4-7 1-2 7H4V7h-9l-5 5-3-1 3-7z" fill={i % 2 ? '#e6ad88' : '#fff0ca'} stroke="#724c3b" strokeWidth=".8" />
-          <path d="M-7 0h8v4h-8z" fill={i % 2 ? '#658372' : '#a85145'} />
+          <path d="M0-14v18" stroke="#b87e42" />
+          <Emoji id="1F3A0" x={0} y={-2} size={28} flip={Math.sin(phase) < 0} />
         </g>
       })}
-      <circle cx="297" cy="88" r="5" fill="#ffdb59" />
-      {inspected === 'level' && <circle cx="267" cy="86" r="5" fill="#fff" />}
+      {/* 노란 표식과 구슬 */}
+      <Sprite name="ball_yellow" x={292} y={82} w={8} />
+      {known.includes('level') && <>
+        <Sprite name="ball_blue" x={150} y={81} w={7} />
+        <Sprite name="ball_blue" x={206} y={81} w={7} />
+        <Sprite name="ball_blue" x={268} y={81} w={7} />
+      </>}
     </g>
   </>
 }
 
-function Safari({ settings, trial, inspected, progress }) {
+function Safari({ settings, trial, field, known, progress }) {
   const hill = [[40, 99], [138, 99], [254, 57], [369, 47]]
   const cargo = settings.cargo === 0
   const beltTest = trial?.index === 1
   const arrival = cargo ? .64 : 1
   const point = positionOn(hill, beltTest ? 0 : progress * arrival)
   const boxTravel = !cargo && beltTest ? progress * (settings.direction ? 1 : -.12) : 0
+  // 짐칸은 열어 봐야 보이고, 무게는 재 봐야 보인다
+  const showCargo = cargo && (!field || known.includes('cargo') || known.includes('weight'))
   return <>
-    <Caption x={82} y={27}>3호차 · 투어 노선</Caption>
+    <Caption x={82} y={27}>3호차, 투어 노선</Caption>
     <Caption x={345} y={27} color={mint}>동물 구역</Caption>
-    <polyline points={route(hill)} fill="none" stroke="#6d9b85" strokeWidth="7" strokeLinejoin="round" />
-    <Truck point={point} cargo={cargo} tilt={!beltTest && progress > .34 && progress < .87 ? -13 : 0} />
-    <Belt x={55} y={120} width={310} reverse={!settings.direction} />
-    {!cargo && <Box x={104 + boxTravel * 228} y={116} />}
-    {inspected === 'weight' && <Caption x={244} y={38} color={coral}>짐칸 무게 초과</Caption>}
+    <polyline points={route(hill)} fill="none" stroke="#b39a74" strokeWidth="7" strokeLinejoin="round" strokeLinecap="round" />
+    <Truck point={point} cargo={showCargo} tilt={!beltTest && progress > .34 && progress < .87 ? -13 : 0} />
+    <Belt x={55} y={120} width={310} reverse={!settings.direction} arrows={!field || known.includes('cargo')} />
+    {!cargo && <Box x={104 + boxTravel * 228} y={114} />}
+    {field && known.includes('weight') && <Caption x={point[0]} y={point[1] - 30} color={coral}>짐칸 210kg</Caption>}
     <Caption x={210} y={150}>먹이 전용 운반 벨트</Caption>
   </>
 }
 
-function Viking({ settings, trial, inspected, progress }) {
+function Viking({ settings, trial, field, known, progress }) {
   const spins = trial && trial.kind !== 'kids' && trial.index !== 0
   const imbalance = settings.side === 1 ? 2 - settings.mass : 2 + settings.mass
   const swing = trial ? Math.sin(progress * Math.PI * (trial.ok ? 2 : 1.3)) * 26 : 0
   const shake = spins && imbalance !== 0 && progress > .6 && progress < .94 ? Math.sin(progress * 125) * 7 : 0
   const rotation = spins ? progress * (trial.ok ? 360 : 130) + shake : 0
+  // 좌석 밑 상자(교체 부품)는 직접 살펴봐야 보인다
+  const showPart = !field || known.includes('npc')
   return <>
     <path d="M117 136 174 29h72l57 107" fill="none" stroke="#75a797" strokeWidth="9" strokeLinejoin="round" />
     <g transform={`rotate(${swing} 210 32)`}>
       <path d="M210 32v64" stroke={gold} strokeWidth="8" strokeLinecap="round" />
       <g transform={`translate(210 105) rotate(${rotation})`}>
-        <circle r="32" fill="#203f42" stroke="#addaca" strokeWidth="3" />
-        <path d="M0-31a31 31 0 0 1 0 62z" fill="#80534b" />
-        {Array.from({ length: 8 }, (_, i) => <circle key={i}
-          cx={Math.cos(i * Math.PI / 4 - 1.18) * 24} cy={Math.sin(i * Math.PI / 4 - 1.18) * 24}
-          r="3.8" fill={i < 4 ? coral : mint} />)}
-        <Box x={12} y={-9} color={coral} />
-        {settings.mass > 0 && <circle cx={settings.side ? -15 : 15} cy="8" r={3 + settings.mass} fill={gold} />}
+        <Sprite name="industrial_067" x={-34} y={-34} w={68} />
+        {Array.from({ length: 8 }, (_, i) => {
+          const a = i * Math.PI / 4 - 1.18
+          return <g key={i} transform={`translate(${Math.cos(a) * 26} ${Math.sin(a) * 26})`}>
+            <Sprite name="ball_red" x={-4} y={-5} w={8} />
+            <text y="2.6" textAnchor="middle" fontSize="6" fontWeight="700" fill="#fff">{i + 1}</text>
+          </g>
+        })}
+        {showPart && <Emoji id="1F50B" x={12} y={-9} size={18} />}
+        {settings.mass > 0 && <Sprite name="industrial_057" x={(settings.side ? -15 : 15) - (4 + settings.mass * 2) / 2} y={8 - (4 + settings.mass * 2) / 2} w={4 + settings.mass * 2} />}
       </g>
     </g>
     <circle cx="210" cy="32" r="9" fill="#f3d28c" stroke={ink} strokeWidth="3" />
-    <Caption x={64} y={104} color={coral}>{inspected === 'weight' ? '1–4번이 더 무거움' : '배터리 · 1–4번'}</Caption>
-    <Caption x={353} y={104} color={gold}>{settings.mass ? `균형추 · ${settings.mass}칸` : '균형추 미장착'}</Caption>
-    {trial && <Caption x={210} y={150}>{trial.kind === 'kids' || trial.index === 0 ? '어린이 모드 · 팔만 움직임' : '스릴 모드 · 팔과 원판'}</Caption>}
+    {field && known.includes('weight') && <Caption x={64} y={104} color={coral}>1~4번 쪽 120kg</Caption>}
+    {field && known.includes('weight') && <Caption x={356} y={104} color={mint}>5~8번 쪽 80kg</Caption>}
+    {!field && <Caption x={353} y={104} color={gold}>{settings.mass ? `균형추 ${settings.mass}칸` : '균형추 없음'}</Caption>}
+    {trial && <Caption x={210} y={150}>{trial.kind === 'kids' || trial.index === 0 ? '어린이 모드, 팔만 움직임' : '스릴 모드, 팔과 원판'}</Caption>}
   </>
 }
 
-function Coaster({ settings, trial, inspected, field, progress }) {
+function Coaster({ settings, trial, field, known, progress }) {
   const compare = field && trial?.kind === 'run'
   const evening = compare ? progress >= .5 : trial?.index === 1 || field
   const moving = compare ? (progress < .5 ? progress * 2 : (progress - .5) * 2) : progress
   const dusty = field ? evening : !settings.clean || (evening && settings.screen !== 1)
   const track = [[25, 89], [74, 55], [107, 61], [154, 111], [211, 116], [268, 91], [316, 44], [348, 45], [392, 90]]
   const [x, y] = positionOn(track, moving * (dusty ? .65 : 1))
+  // 하얀 가루와 바람 방향은 레일을 직접 점검해야 보인다
+  const seenDust = !field || known.includes('rail')
   return <>
     <RepairSet id="coaster" dusk={evening} />
     <Caption x={60} y={22}>{evening ? '저녁 운행' : '아침 운행'}</Caption>
+    {/* 솜사탕 가게 */}
+    <Sprite name="curtain_straight" x={124} y={50} w={40} h={12} />
+    <Emoji id="1F36D" x={144} y={72} size={20} />
     {track.filter((_, i) => i % 2).map(([x, y]) => <path key={x} d={`M${x} ${y + 10}v${134 - y}`} stroke="#446d63" strokeWidth="3" />)}
     <polyline points={route(track)} fill="none" stroke="#694b45" strokeWidth="4" strokeLinejoin="round" />
-    {dusty && [0, 1, 2, 3, 4, 5, 6].map((i) => <circle key={i} cx={215 + i * 8} cy={117 - i * 4} r={i % 2 ? 2 : 3} fill={coral} />)}
-    {settings.screen !== 0 && <rect x={settings.screen === 1 ? 248 : 349} y="27" width="7" height="39" rx="2" fill={mint} />}
-    {(inspected === 'rail' || evening) && <path d="M161 66h74l-9-6m9 6-9 6" fill="none" stroke={coral} strokeDasharray="4 3" />}
+    {dusty && seenDust && [0, 1, 2, 3, 4, 5, 6].map((i) => <circle key={i} cx={215 + i * 8} cy={117 - i * 4} r={i % 2 ? 2 : 3} fill="#fff" stroke="#c9b9a0" strokeWidth=".6" />)}
+    {settings.screen !== 0 && <Sprite name="fence" x={settings.screen === 1 ? 240 : 341} y={34} w={24} />}
+    {seenDust && evening && <path d="M161 66h74l-9-6m9 6-9 6" fill="none" stroke={coral} strokeDasharray="4 3" />}
     <g transform={`translate(${x} ${y})`}>
-      <rect x="-14" y="-7" width="28" height="13" rx="4" fill={gold} />
-      <circle cx="-7" cy="7" r="3" fill="#16322f" stroke={mint} />
-      <circle cx="7" cy="7" r="3" fill="#16322f" stroke={mint} />
+      <Emoji id="1F683" x={0} y={-2} size={30} />
     </g>
-    <Caption x={275} y={151} color={dusty ? coral : mint}>{dusty ? '설탕 가루가 쌓이는 구간' : '마지막 언덕 · 레일 정상'}</Caption>
+    <Caption x={275} y={151} color={dusty && seenDust ? coral : mint}>{dusty && seenDust ? '하얀 가루가 묻은 구간' : '마지막 언덕'}</Caption>
   </>
 }
 
-function Sign({ settings, trial, inspected, field, progress }) {
+function Sign({ settings, trial, inspected, field, known, progress }) {
   const night = trial ? (field ? progress >= .45 : trial.index === 1) : inspected === 'wire'
   const lit = night && settings.wire !== 2
   const overload = lit && settings.wire === 0
   const flicker = overload && (progress === 1 || Math.floor(progress * 8) % 2 === 0)
+  // 전선이 어디로 이어지는지는 3번 줄 전선을 따라가 봐야 보인다
+  const traced = !field || known.includes('wire')
   return <>
     <RepairSet id="sign" dusk={night} />
     <rect x="32" y="17" width="214" height="116" rx="12" fill={night ? '#10292e' : '#31584d'} stroke="#719d8e" />
-    {['도로랜드 축제', '퍼레이드 안내', flicker ? '■ · ░ · ■' : '오후 6시 개막'].map((line, i) => <g key={i}>
+    {['도로랜드 축제', '퍼레이드 안내', flicker ? '■ ░ ■' : '오후 6시 개막'].map((line, i) => <g key={i}>
       <rect x="47" y={30 + i * 31} width="184" height="25" rx="5" fill={i === 2 && overload ? '#753e3c' : '#21493f'} />
       <Caption x={139} y={47 + i * 31} color={i === 2 && overload ? '#ffc5a2' : '#f9dda2'}>{line}</Caption>
     </g>)}
-    <path d={settings.wire === 0 ? 'M246 107h53V67h75' : 'M274 128h34V67h66'} fill="none" stroke={overload ? coral : mint} strokeWidth="3" strokeDasharray={settings.wire === 2 ? '3 5' : undefined} />
-    {[311, 338, 365].map(x => <circle key={x} cx={x} cy="67" r="7" fill={lit ? gold : '#607b73'} />)}
-    <Caption x={337} y={43}>{night ? '밤 · 장식 조명' : '낮 · 안내 표시'}</Caption>
-    <Caption x={336} y={109} color={overload ? coral : mint}>{['3번 줄과 전선 공유', '장식 전원 분리', '장식 전원 꺼짐'][settings.wire]}</Caption>
+    {traced && <path d={settings.wire === 0 ? 'M246 107h53V67h75' : 'M274 128h34V67h66'} fill="none" stroke={overload ? coral : mint} strokeWidth="3" strokeDasharray={settings.wire === 2 ? '3 5' : undefined} />}
+    {traced && <Emoji id="1F50C" x={settings.wire === 0 ? 262 : 290} y={settings.wire === 0 ? 107 : 128} size={16} />}
+    {[311, 338, 365].map(x => <Sprite key={x} name={lit ? 'industrial_040' : 'industrial_039'} x={x - 9} y={58} w={18} opacity={lit ? 1 : .45} />)}
+    <Caption x={337} y={43}>{night ? '밤, 장식 조명' : '낮, 안내 표시'}</Caption>
+    {traced && <Caption x={336} y={109} color={overload ? coral : mint}>{field ? '갈라진 전선 → 장식 조명' : ['3번 줄과 전선 함께 씀', '장식 전원 따로', '장식 전원 꺼짐'][settings.wire]}</Caption>}
   </>
 }
 
-function Parade({ settings, trial, inspected, progress }) {
+function Parade({ settings, trial, inspected, field, known, progress }) {
   const routeTest = trial?.index === 1 || inspected === 'route'
   const [x, y] = positionOn(
     settings.route ? [[44, 101], [153, 111], [235, 111], [324, 90]] : [[44, 101], [128, 101], [216, 75], [324, 75]],
     progress * (routeTest ? settings.route ? 1 : .65 : settings.load && settings.balance ? 1 : .52),
   )
+  const seen = (id) => !field || known.includes(id)
   return <>
-    <path d="M35 112h89l93-26h122" stroke="#719a8b" strokeWidth="6" fill="none" strokeLinejoin="round" />
+    <path d="M35 112h89l93-26h122" stroke="#b39a74" strokeWidth="6" fill="none" strokeLinejoin="round" />
     <path d="M125 114h127l82-18" stroke={settings.route ? mint : '#5e8077'} strokeDasharray="6 5" fill="none" />
-    <path d="M314 78V33h77v45m-86-45h95l-47-18z" fill="#42685d" stroke="#7cab9b" strokeWidth="2" />
-    {[329, 351, 376].map((lamp, index) => <circle key={lamp} cx={lamp} cy="44" r="5"
-      fill={settings.power || Math.floor(progress * 16 + index) % 3 === 0 ? gold : '#77634b'} />)}
-    <Caption x={351} y={65} color="#fff0d6">축제 무대</Caption>
-    {!settings.route && <path d="M236 78h24m-22-7 20 13m0-13-20 13" stroke={coral} strokeWidth="4" />}
-    <Truck point={[x, y]} cargo={!settings.load} tilt={!settings.balance ? -8 : 0} />
+    <Emoji id="1F3AA" x={352} y={52} size={62} />
+    {[329, 351, 376].map((lamp, index) => {
+      const on = settings.power || Math.floor(progress * 16 + index) % 3 === 0
+      return <Sprite key={lamp} name={on ? 'industrial_040' : 'industrial_039'} x={lamp - 7} y={14} w={14} opacity={on ? 1 : .45} />
+    })}
+    <Caption x={351} y={92} color={ink}>축제 무대</Caption>
+    {!settings.route && seen('route') && <Emoji id="1F6A7" x={248} y={72} size={22} />}
+    <Truck point={[x, y]} cargo={!settings.load && seen('load')} tilt={!settings.balance ? -8 : 0} />
     {[0, 1, 2].map(i => {
       const dx = settings.balance ? (i - 1) * 15 : -19 - i * 10
-      return <g key={i}><path d={`M${x - 6} ${y - 12}l${dx + 6} -23`} stroke={mint} />
-        <ellipse cx={x + dx} cy={y - 37 - i % 2 * 5} rx="7" ry="9" fill={[coral, gold, mint][i]} /></g>
+      return <g key={i}><path d={`M${x - 6} ${y - 14}l${dx + 6} -21`} stroke={mint} />
+        <Emoji id="1F388" x={x + dx} y={y - 40 - i % 2 * 5} size={20} /></g>
     })}
-    <Caption x={105} y={142} color={settings.load && settings.balance ? mint : coral}>{settings.load ? '짐 별도 운반' : '짐과 장식을 차량에 적재'}</Caption>
-    <Caption x={317} y={142} color={settings.route ? mint : coral}>{settings.route ? '우회로 연결' : '기존 도로에 장애물'}</Caption>
+    {seen('load') && <Caption x={105} y={142} color={settings.load && settings.balance ? mint : coral}>{settings.load ? '짐 따로 운반' : '짐과 장식을 차에 실음'}</Caption>}
+    {seen('route') && <Caption x={317} y={142} color={settings.route ? mint : coral}>{settings.route ? '우회로 연결' : '길 한가운데 무대 기둥'}</Caption>}
   </>
 }
 
-function Delivery({ settings, trial, progress }) {
+function Delivery({ settings, trial, field, known, progress }) {
   const emptyTest = trial?.index === 0
   const stop = settings.direction ? settings.clear ? 1 : .83 : .46
+  const rollers = !field || known.includes('roller')
+  const blocked = !settings.clear && (!field || known.includes('obstacle'))
   return <>
     <Caption x={103} y={43}>첫 번째 롤러</Caption>
-    <Caption x={243} y={43} color={settings.direction ? mint : coral}>두 번째 롤러</Caption>
-    <Belt x={27} y={88} width={144} />
-    <Belt x={173} y={88} width={153} reverse={!settings.direction} />
-    <path d="M333 78v32h61V78" fill="#315a4f" stroke={mint} strokeWidth="3" />
-    {!settings.clear && <path d="M309 86l-6-11 16 2 5 9z" fill={coral} />}
+    <Caption x={243} y={43} color={rollers && !settings.direction ? coral : ink}>두 번째 롤러</Caption>
+    <Belt x={27} y={88} width={144} arrows={rollers} />
+    <Belt x={173} y={88} width={153} reverse={!settings.direction} arrows={rollers} />
+    <Sprite name="industrial_057" x={334} y={70} w={58} h={40} />
+    {blocked && <Sprite name="present_small_orange" x={305} y={74} w={12} />}
     {!emptyTest && <Box x={51 + 311 * progress * stop} y={78} />}
-    {emptyTest && <circle cx={51 + 267 * progress * (settings.direction ? 1 : .52)} cy="96" r="5" fill={mint} />}
-    <Caption x={361} y={133}>{settings.clear ? '도착 상자' : '포장 조각이 막음'}</Caption>
+    {emptyTest && <Sprite name="ball_blue" x={46 + 267 * progress * (settings.direction ? 1 : .52)} y={78} w={10} />}
+    <Caption x={361} y={133}>{blocked ? '입구에 포장 조각' : '도착 상자'}</Caption>
   </>
 }
 
@@ -291,7 +332,7 @@ const locations = {
   delivery: '작업실 포장대',
 }
 
-export default function RepairScene({ item, settings, trial, inspected, field, finished = false, stage = false }) {
+export default function RepairScene({ item, settings, trial, inspected, field, known = [], finished = false, stage = false }) {
   const [frame, setFrame] = useState(null)
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   const animate = Boolean(trial && !reduceMotion && !finished)
@@ -318,7 +359,7 @@ export default function RepairScene({ item, settings, trial, inspected, field, f
 
   const art = <>
     {item.id !== 'coaster' && item.id !== 'sign' && <RepairSet id={item.id} />}
-    <Scene settings={settings} trial={trial} inspected={inspected} field={field} progress={progress} />
+    <Scene settings={settings} trial={trial} inspected={inspected} field={field} known={known} progress={progress} />
   </>
   const caption = <figcaption><span>{locations[item.id]}</span>{status && <b data-failed={testing && progress >= 1 && !trial.ok}>{status}</b>}</figcaption>
   if (stage) return (

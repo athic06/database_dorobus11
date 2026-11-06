@@ -242,7 +242,7 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
   return (
     <section className={`repair-case repair-stage${inWorld ? ' in-world' : ' in-desk'}`}>
       <div className="repair-stage-scene">
-        <RepairScene item={item} settings={settings} trial={trial} inspected={inspected} field={phase === 'field'} finished={phase === 'complete' && !trial} stage />
+        <RepairScene item={item} settings={settings} trial={trial} inspected={inspected} field={phase === 'field'} known={known} finished={phase === 'complete' && !trial} stage />
       </div>
 
       <header className="repair-hud-title">
@@ -468,7 +468,7 @@ export function FestivalField({ item, onClose }) {
 }
 
 function AssetCredit() {
-  return <footer className="repair-credit">아이콘 <a href="https://openmoji.org/">OpenMoji</a> · <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a> · 버거 재료 <a href="https://davemarian.itch.io/food-and-ingredients-assets-from-gamejam">Dave Marian</a></footer>
+  return <footer className="repair-credit">아이콘 <a href="https://openmoji.org/">OpenMoji</a> · <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>, 배경과 소품 <a href="https://kenney.nl/">Kenney</a> CC0, 버거 재료 <a href="https://davemarian.itch.io/food-and-ingredients-assets-from-gamejam">Dave Marian</a></footer>
 }
 
 // 마이룸 컴퓨터의 원격 수리실. 스토리 수리를 모두 마쳐 원격 수리 자격증을 받으면 열린다.
