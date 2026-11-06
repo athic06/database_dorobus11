@@ -6,10 +6,12 @@ import { FerrisWheel, RollerCoaster, Carousel } from '../world/Rides.jsx'
 import { Harmonia, MyRoomHouse, Shop, Lab, Storage, Safari, CaveMountain, CubeVault, Signboard } from '../world/Landmarks.jsx'
 import { SkyDome, Clouds, PostFX } from '../world/Atmosphere.jsx'
 import Terrain from '../world/Terrain.jsx'
+import FestivalFacilities from '../world/FestivalFacilities.jsx'
 import { ALL_ROAD_SEGMENTS, PLACES, WORLD_HALF } from '../world/layout.js'
 import { useSceneEntry, sceneShot, EntryCamera, EntryOverlay } from '../world/SceneEntry.jsx'
 
-const views = { carousel: [10, 7, 18], ferris: [20, 9, 3], coaster: [-24, 12, 9], overview: [125, 120, 155], walk: [0, 4.6, 22], entrance: [3, 3.8, 17] }
+const views = { carousel: [10, 7, 18], ferris: [20, 9, 3], coaster: [-24, 12, 9], viking: [-12, 8.5, 20], food: [-10, 7, -21], parade: [2, 8, 21], overview: [125, 120, 155], walk: [0, 4.6, 22], entrance: [3, 3.8, 17] }
+const FESTIVAL_PREVIEW = { viking: true, food: true, safari: true, parade: true }
 function FrameProbe({ report }) {
   const sample=useRef({seconds:0,frames:0})
   useFrame((_,delta)=>{
@@ -27,7 +29,7 @@ function Inspect({ selected, entry }) {
     if (last.current === selected || !controls.current || entry.active) return
     last.current = selected
     camera.position.set(...target.map((v, i) => v + views[selected][i]))
-    controls.current.target.set(target[0], selected === 'ferris' ? 12 : selected === 'coaster' ? 6 : selected === 'walk' ? 2 : 3, target[2])
+    controls.current.target.set(target[0], { ferris: 12, coaster: 6, viking: 6.5, walk: 2 }[selected] ?? 3, target[2])
     controls.current.update()
   })
   return <OrbitControls ref={controls} enabled={!entry.active} maxPolarAngle={Math.PI / 2 - 0.02} minDistance={5} maxDistance={420} />
@@ -45,10 +47,11 @@ export default function WorldPreview() {
       <Terrain roads={ALL_ROAD_SEGMENTS} half={WORLD_HALF} night={stopped} />
       <MyRoomHouse /><Shop state="open" /><Lab open /><Storage /><Safari /><CaveMountain open /><CubeVault open={false} cubes={false} /><Signboard stopped={stopped} /><Outskirts />
       <Clouds dim={stopped} /><Harmonia stopped={stopped} /><FerrisWheel stopped={stopped} /><RollerCoaster stopped={stopped} /><Carousel stopped={stopped} locked={false} />
+      <FestivalFacilities records={stopped ? {} : FESTIVAL_PREVIEW} />
       <Inspect selected={selected} entry={entry} /><EntryCamera entry={entry} /><PostFX bloom={0.28} /><FrameProbe report={setFps}/>
     </Canvas>
     <div className="hud hud-top"><span className="room-title">도로랜드 · 그래픽 미리보기</span>
-      {Object.entries({ carousel: '회전목마', ferris: '관람차', coaster: '롤러코스터', overview: '맵 전체', walk: '숲길 시점', entrance: '입구 시점' }).map(([id, label]) => <button key={id} className="license-btn" disabled={entry.active} onClick={() => select(id)}>{label}</button>)}
+      {Object.entries({ carousel: '회전목마', ferris: '관람차', coaster: '롤러코스터', viking: '바이킹', food: '푸드코트', parade: '축제 무대', overview: '맵 전체', walk: '숲길', entrance: '입구' }).map(([id, label]) => <button key={id} className="license-btn" disabled={entry.active} onClick={() => select(id)}>{label}</button>)}
       <button className="license-btn" onClick={() => stop(!stopped)}>{stopped ? '운행 재개' : '정지 상태'}</button>
       <button className="license-btn" disabled={entry.active || !PLACES[selected]} onClick={() => entry.enter(sceneShot(PLACES[selected].pos, PLACES[selected].name, views[selected], selected === 'ferris' ? 10 : 3), () => showMission(true))}>입장 연출</button>
     </div>

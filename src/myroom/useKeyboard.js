@@ -10,16 +10,18 @@ const MAP = {
   ShiftLeft: 'walk', ShiftRight: 'walk',
 }
 
-const isTyping = (e) => ['INPUT', 'TEXTAREA'].includes(e.target?.tagName)
+const isTyping = (e) => ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target?.tagName) || e.target?.isContentEditable
 
-export function useKeyboard(onAction) {
+export function useKeyboard(onAction, enabled = true) {
   const keys = useRef({ forward: false, back: false, left: false, right: false, jump: false, walk: false })
   const actionRef = useRef(onAction)
   actionRef.current = onAction
 
   useEffect(() => {
+    if (!enabled) return
     const down = (e) => {
       if (isTyping(e)) return
+      if (e.code === 'Space' && e.target?.closest?.('.repair-page button, .repair-page a')) return
       if (MAP[e.code]) {
         keys.current[MAP[e.code]] = true
         e.preventDefault()
@@ -35,11 +37,12 @@ export function useKeyboard(onAction) {
     window.addEventListener('keyup', up)
     window.addEventListener('blur', reset)
     return () => {
+      reset()
       window.removeEventListener('keydown', down)
       window.removeEventListener('keyup', up)
       window.removeEventListener('blur', reset)
     }
-  }, [])
+  }, [enabled])
 
   return keys
 }

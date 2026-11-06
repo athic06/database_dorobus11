@@ -90,20 +90,26 @@ export function FaultMarker({ position, name }) {
   )
 }
 
-const goal = new THREE.Vector3()
-// 완성된 보이드가 자동차 뒤를 졸졸 따라온다
+// 조립을 마친 보이드가 스토리 탐험 중 플레이어를 따라간다.
 export function VoidFollower({ posRef, headingRef }) {
   const g = useRef()
+  const goal = useRef(new THREE.Vector3())
+  const started = useRef(false)
   useFrame((_, dt) => {
     if (!g.current) return
     const h = headingRef.current
     const p = posRef.current
-    goal.set(p.x - Math.sin(h) * 4 + Math.cos(h) * 1.6, 0, p.z - Math.cos(h) * 4 - Math.sin(h) * 1.6)
+    const target = goal.current.set(
+      p.x - Math.sin(h) * 4 + Math.cos(h) * 1.6,
+      p.y,
+      p.z - Math.cos(h) * 4 - Math.sin(h) * 1.6,
+    )
     const cur = g.current.position
-    const d = cur.distanceTo(goal)
-    if (d > 30) cur.copy(goal)
-    else cur.lerp(goal, 1 - Math.pow(0.04, dt))
-    if (d > 0.05) g.current.rotation.y = Math.atan2(goal.x - cur.x, goal.z - cur.z) || g.current.rotation.y
+    if (!started.current || cur.distanceToSquared(target) > 900) {
+      cur.copy(target)
+      started.current = true
+    } else cur.lerp(target, 1 - Math.pow(0.04, dt))
+    g.current.rotation.y = h
   })
-  return <VoidBot groupRef={g} position={[0, 0, 70]} />
+  return <VoidBot groupRef={g} />
 }

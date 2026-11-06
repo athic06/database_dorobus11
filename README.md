@@ -50,3 +50,13 @@ npm run dev
 - 놀이기구 모델: `src/world/Rides.jsx`. 코스터 경로·충돌 기준: `src/world/rideGeometry.js`.
 - 카메라 연출: `src/world/SceneEntry.jsx`. 각 3D 페이지에서 장소별 구도를 지정한다. 연출 건너뛰기와 OS의 모션 감소 설정을 지원한다.
 - 메인 스토리 전체 플레이 검증은 별도로 진행한다. 그래픽 변경은 로컬 빌드와 모델 미리보기, 자동차 점검 미션 진입·복귀로 확인했다.
+
+## 보이드와 함께하는 고장 수사대
+
+마이룸에서 도로랜드로 나간 뒤 미니맵 노란 점이 있는 시설에 접근한다. **R · 현장 조사 열기**를 누르면 전체 화면 2D 수사 장면으로 전환된다. 원인을 확인하면 같은 사건에서 바로 부품을 조정하고 두 조건에서 시험한다. 화면을 닫으면 직전 도로랜드 위치로 돌아온다. 스탬프 4개를 모아 광장 북쪽 축제 무대에서 개막 퍼레이드를 마치면, 마이룸 컴퓨터의 **정비 작업실**에서 별도의 2D 의뢰를 받을 수 있다.
+
+기본 실행은 게임에 포함된 보이드 안내를 사용한다. 성인 개발자 전용 로컬 시연에서 Gemini를 쓰려면 프로젝트 루트에 Git이 무시하는 `.env.repair-demo.local` 파일을 만들고 `GEMINI_API_KEY=발급받은_키`를 넣는다. `npm run dev:repair-demo`로 실행하고 터미널의 `http://127.0.0.1:5175/#/myroom`를 연다. 기본 모델은 `gemini-3.1-flash-lite`이며, 다른 호환 Gemini 3 Flash 모델이 필요하면 `GEMINI_MODEL`로 설정한다. 키를 추가하거나 바꾸면 개발 서버를 재시작한다.
+
+시연에서 보이드에게 쓴 질문과 확인된 사건 단서만 Gemini로 전달한다. 성인 시연에서는 가상의 질문을 사용한다. Gemini는 조사 의도와 단서 ID만 반환하며 수리 판정과 진행은 게임에서 계산한다. 질문 아래 **Gemini 시연** 또는 **기본 안내** 표시로 응답 경로를 확인한다. 시연 API는 루프백 Vite 개발 서버에만 등록된다.
+
+삽화: [OpenMoji 17.0.0](https://github.com/hfg-gmuend/openmoji/tree/17.0.0), [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). 원본 SVG와 라이선스는 `public/repair/openmoji`에 있다. 회전 바이킹, 푸드코트, 사파리 차량, 축제 무대의 3D 소품은 Kenney의 CC0 모델을 사용한다. 원본 모델과 출처는 `public/models/festival`에 있다.

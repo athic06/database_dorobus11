@@ -190,7 +190,7 @@ function Horse({ color }) {
   </group>
 }
 
-export function Carousel({ stopped, locked = true }) {
+export function Carousel({ stopped, locked = true, lit = !stopped }) {
   const spin = useRef(), horses = useRef([])
   const details = useMemo(() => {
     const bulbs = [], columns = []
@@ -233,7 +233,7 @@ export function Carousel({ stopped, locked = true }) {
       <coneGeometry args={[6.4, 1.9, 6, 1, true, i * TAU / 16, TAU / 16]} />
       <meshStandardMaterial color={i % 2 ? IVORY : '#BB7361'} {...paint} side={THREE.DoubleSide} />
     </mesh>)}
-    <Parts items={details.bulbs} shape="sphere" color="#FFE8B5" glow={stopped ? 0 : 2} />
+    <Parts items={details.bulbs} shape="sphere" color="#FFE8B5" glow={lit ? 2 : 0} />
     <Drum radius={0.18} height={0.7} position={[0, 8.4, 0]} color={GOLD} />
     <Orb position={[0, 8.85, 0]} scale={[0.28, 0.28, 0.28]} color={GOLD} />
     <Label y={10.5} locked={locked}>회전목마</Label>

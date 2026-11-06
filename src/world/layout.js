@@ -13,6 +13,9 @@ export const PLACES = {
   ferris: { name: '관람차', pos: [-50, 0, -6], radius: 9 },
   coaster: { name: '롤러코스터', pos: [48, 0, -10], radius: 14 },
   safari: { name: '사파리', pos: [-52, 0, -56], radius: 18 },
+  food: { name: '푸드코트', pos: [27, 0, 72], radius: 11 },
+  viking: { name: '회전 바이킹', pos: [29, 0, -37], radius: 14 },
+  parade: { name: '축제 무대', pos: [-14, 0, -43], radius: 12 },
   storage: { name: '오래된 창고', pos: [-78, 0, 14], radius: 5 },
   cave: { name: '동굴', pos: [44, 0, -66], radius: 7 },
   // 바깥쪽 명소: 스토리와 상관없이 둘러보는 곳 (탐험의 날 퀘스트에 포함)
@@ -43,7 +46,16 @@ export const ROADS = [
   ['lab', 'station'],
   ['safari', 'camp'],
   ['harmonia', 'observatory'],
+  ['harmonia', 'viking'],
+  ['harmonia', 'parade'],
+  ['sign', 'food'],
 ]
+
+export const FESTIVAL_ENTRANCES = {
+  food: [22, 0, 63],
+  viking: [19, 0, -29],
+  parade: [-13, 0, -31],
+}
 
 // Scenic routes do not add or move any quest destination.
 export const SCENIC_ROADS = [
@@ -73,6 +85,7 @@ const ringPoint = (angle) => [Math.cos(angle) * RING_R, 0, Math.sin(angle) * RIN
 const RING_PATH = Array.from({ length: 65 }, (_, i) => ringPoint((i / 64) * Math.PI * 2))
 // id 장소에서 target 쪽을 향한 가장자리 점. 놀이시설은 하모니아 쪽 길이면 정문(gate)을 쓴다.
 function edgeToward(id, target, useGate) {
+  if (FESTIVAL_ENTRANCES[id]) return FESTIVAL_ENTRANCES[id]
   const district = DISTRICTS.find((d) => d.id === id)
   if (district && useGate) return district.gate
   const [px, , pz] = PLACES[id].pos
@@ -125,6 +138,11 @@ export const COLLIDERS = [
   [-50, -6, 12.8], // 관람차 언덕 (자동차는 못 오른다. 걸어서는 계단으로)
   [48, -10, 3], [56, -18, 2], [40, -18, 2], // 롤러코스터 기둥
   [-78, 14, 3.5], // 창고
+  [29, -37, 9.6], // 회전 바이킹 운행 구역
+  [23, 74, 2.6], [29, 74, 2.6], [34, 73, 2.4], // 푸드코트 판매대
+  [19.4, 66.5, 0.8], [23.3, 66.5, 0.8], [29, 66.5, 0.8], [33.2, 66.5, 0.8],
+  [-14, -47, 5.7], // 축제 무대
+  [-65, -43, 1.3], [-61.5, -43, 1.3], [-44, -43, 1.3], // 사파리 주차 차량
   [44, -78, 11], [32, -76, 8], [56, -76, 8], // 동굴 산
   [-100, 80, 15.5], // 호수
   [-112, -12, 2.6], // 꽃 정원 분수

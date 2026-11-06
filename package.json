@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:repair-demo": "vite --mode repair-demo",
     "build": "vite build",
     "preview": "vite preview"
   },

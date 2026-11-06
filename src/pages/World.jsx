@@ -5,7 +5,7 @@ import { PerformanceMonitor, Preload } from '@react-three/drei'
 import { useLocation, useNavigate } from 'react-router-dom'
 import * as THREE from 'three'
 import ViewControls from '../myroom/ViewControls.jsx'
-import Robot from '../myroom/Robot.jsx'
+import Robot, { viewOffset } from '../myroom/Robot.jsx'
 import Driver from '../world/Driver.jsx'
 import Minimap, { localViewBox, toMap } from '../world/Minimap.jsx'
 import { Xylo, Naty, CodexSilhouette, Person } from '../world/Characters.jsx'
@@ -13,10 +13,11 @@ import {
   Harmonia, FerrisWheel, RollerCoaster, Carousel, CubeVault, Signboard, MyRoomHouse, Shop, Lab, Storage, Safari, CaveMountain,
 } from '../world/Landmarks.jsx'
 import Terrain from '../world/Terrain.jsx'
+import FestivalFacilities from '../world/FestivalFacilities.jsx'
 import MergeStatic from '../world/MergeStatic.jsx'
 import { Outskirts } from '../world/Scenery.jsx'
 import { Balloons, Birds, Clouds, PerfProbe, SkyDome } from '../world/Atmosphere.jsx'
-import { ALL_COLLIDERS, ALL_ROAD_SEGMENTS, PLACES, ROADS, VAULT, WALK_COLLIDERS, WORLD_HALF, walkBlocked, walkHeight } from '../world/layout.js'
+import { ALL_COLLIDERS, ALL_ROAD_SEGMENTS, FESTIVAL_ENTRANCES, PLACES, VAULT, WALK_COLLIDERS, WORLD_HALF, walkBlocked, walkHeight } from '../world/layout.js'
 import ShopRestockMission from '../missions/ShopRestockMission.jsx'
 import SignMission from '../missions/SignMission.jsx'
 import { PART_MISSIONS } from '../missions/PartMissions.jsx'
@@ -37,6 +38,8 @@ import { useKeyboard } from '../myroom/useKeyboard.js'
 import { useProximity } from '../game/useProximity.js'
 import { FACILITY_GOAL, VOID_PARTS, harmoniaStopped, rikoMissing, storyDone } from '../game/progress.js'
 import { useStore } from '../store.jsx'
+import { FestivalField } from './Repair.jsx'
+import { PARADE, PARADE_STAMP_TARGET, REPAIR_CASES } from '../game/repairCases.js'
 
 const ROAD_SEGMENTS = ALL_ROAD_SEGMENTS
 const XYLO_POS = [7, 0, 52]
@@ -84,7 +87,7 @@ const SCENIC_LINES = {
 
 // 월드의 고정 배경(지형, 숲, 명소, 놀이시설, 하늘). 근처 안내 문구 같은 화면 상태가 바뀔 때마다
 // 3D 장면 전체를 다시 맞춰 보지 않도록, 아래 값이 바뀔 때만 다시 그린다.
-const Scenery = memo(function Scenery({ stopped, dusk, plazaOpen, shopReopened, cubesFound, shopState, voidStarted, caveOpen, faultKey }) {
+const Scenery = memo(function Scenery({ stopped, dusk, plazaOpen, shopReopened, cubesFound, shopState, voidStarted, caveOpen, faultKey, carouselUnderRepair }) {
   const broken = (id) => faultKey.split(',').includes(id)
   return (
     <>
@@ -101,7 +104,8 @@ const Scenery = memo(function Scenery({ stopped, dusk, plazaOpen, shopReopened, 
       <MergeStatic deps={[stopped, faultKey, shopReopened]}>
         <FerrisWheel stopped={stopped || broken('ferris')} />
         <RollerCoaster stopped={stopped || broken('coaster')} />
-        <Carousel stopped={stopped || broken('carousel')} locked={!shopReopened} />
+        <Carousel stopped={stopped || broken('carousel') || carouselUnderRepair} locked={!shopReopened}
+          lit={!(stopped || broken('carousel'))} />
       </MergeStatic>
       <CubeVault open={shopReopened} cubes={shopReopened && !cubesFound} />
       {/* 건물들도 움직이지 않는 조각을 합쳐 그린다 */}
@@ -134,6 +138,7 @@ const SPOTS = [
   { id: 'storage', pos: [-74, 0, 19], radius: 5 },
   { id: 'cave', pos: [44, 0, -63], radius: 5 },
   { id: 'naty', pos: NATY_POS, radius: 4 },
+  ...Object.entries(FESTIVAL_ENTRANCES).map(([id, pos]) => ({ id, pos, radius: 5.5 })),
   ...SCENIC,
 ]
 
@@ -227,6 +232,7 @@ export default function World() {
   const location = useLocation()
   const spawn = p.rescueLessonDone && !p.rikoBack ? SPAWNS.carousel : SPAWNS[location.state?.from] || SPAWNS.myroom
   const posRef = useRef(new THREE.Vector3(spawn[0], 0, spawn[1]))
+  const cameraPosition = useRef([spawn[0], 8, spawn[1] - Math.cos(spawn[2]) * 12])
   const headingRef = useRef(spawn[2])
   const view = useRef({ yaw: 0, pitch: 0.32, dist: 11 })
   // F: 차에서 내려 걸어 다니기 (계단이 있는 관람차 언덕은 걸어서만 오른다)
@@ -245,6 +251,11 @@ export default function World() {
   const lastMark = useRef('')
   const [dialog, setDialog] = useState(null)
   const [mission, setMission] = useState(null)
+  const [festivalId, setFestivalId] = useState(null)
+  const festivalRecords = p.festivalRepairs ?? {}
+  const festivalStamps = REPAIR_CASES.filter(item => festivalRecords[item.id]).length
+  const festivalCases = festivalStamps >= PARADE_STAMP_TARGET ? [...REPAIR_CASES, PARADE] : REPAIR_CASES
+  const festivalItem = festivalCases.find(item => item.id === festivalId)
   const [codex, setCodex] = useState(false) // 'silhouette' | 'revealed' | false
   const [cleared, setCleared] = useState(false) // 'ch3' | 'ch4' | 'ch5' | false
   const [asking, setAsking] = useState(false)
@@ -454,21 +465,37 @@ export default function World() {
   const entersSpace = (id) => !faults.includes(id) && (id === 'myroom' || (id === 'harmonia' && p.plazaOpen) || (id === 'cave' && caveOpen))
   const interact = (id) => {
     if (entry.active) return
+    if (FESTIVAL_ENTRANCES[id]) {
+      if (nearbyCase) return openFestivalCase()
+      return say([{ who: '자일로', text: `축제 정비 스탬프를 ${PARADE_STAMP_TARGET}개 모으면 이곳에서 리허설을 시작해요!` }])
+    }
     if (!entersSpace(id)) return executeInteraction(id)
     const pos = id.startsWith('part-') ? PART_SPOTS[id.slice(5)]?.pos : id === 'vault' ? VAULT.pos : PLACES[id]?.pos || SPOTS.find(s => s.id === id)?.pos || posRef.current.toArray()
     const composition = { ferris: [[20, 12, 3], 13], coaster: [[-24, 12, 9], 7], carousel: [[10, 7, 18], 3.5], harmonia: [[8, 7, 27], 7], cave: [[4, 4, 14], 3], vault: [[5, 4, 8], 2], lab: [[10, 6, 14], 3] }[id]
     entry.enter(sceneShot(pos, PROMPTS[id] || '도로랜드', ...(composition || [])), () => executeInteraction(id))
   }
-  const busy = bigMap || entry.active || !!dialog || !!mission || !!cleared || asking || chat || showLicense || showPark || !!routinePanel
+  const busy = bigMap || entry.active || !!dialog || !!mission || !!festivalItem || !!cleared || asking || chat || showLicense || showPark || !!routinePanel
+  const nearbyCase = festivalCases.find(item => item.id === near)
+  const openFestivalCase = () => {
+    if (busy || !nearbyCase) return
+    setFestivalId(nearbyCase.id)
+  }
+  const closeFestivalCase = () => {
+    const position = onFoot ? walkRef.current : posRef.current
+    const yaw = view.current.yaw + (onFoot ? 0 : headingRef.current + Math.PI)
+    cameraPosition.current = viewOffset({ ...view.current, yaw }).add(position).toArray()
+    setFestivalId(null)
+  }
   const keys = useKeyboard((code) => {
     if (code === 'KeyM' && (bigMap || !busy)) return setBigMap(!bigMap)
     if (code === 'Escape' && bigMap) return setBigMap(false)
+    if (code === 'KeyR' && !busy) return openFestivalCase()
     if (code === 'KeyE' && !busy && nearRef.current) interact(nearRef.current)
     if (code === 'KeyF' && !busy) {
       if (!onFoot) exitCar()
       else if (nearCar) enterCar()
     }
-  })
+  }, !festivalItem)
 
   const onMove = (pos, h) => {
     onNear(pos)
@@ -494,6 +521,9 @@ export default function World() {
     'part-antenna': '길 잃은 방문객 · 부품',
     ferris: parkOpen(p) ? `관람차 · Lv.${levelOf(p, 'ferris')}` : '관람차',
     coaster: parkOpen(p) ? `롤러코스터 · Lv.${levelOf(p, 'coaster')}` : '롤러코스터',
+    food: '푸드코트 · 보이드와 조사',
+    viking: '회전 바이킹 · 보이드와 조사',
+    parade: festivalStamps >= PARADE_STAMP_TARGET ? '퍼레이드 · 보이드와 조사' : '축제 무대 살펴보기',
     safari: '사파리 둘러보기',
     storage: p.voidBuilt && !p.codexMet ? '오래된 창고 · 보이드가 가리킨 곳' : '오래된 창고',
     cave: caveOpen ? '동굴 들어가기' : '동굴',
@@ -502,7 +532,8 @@ export default function World() {
   }
 
   const openIds = [
-    'myroom', 'safari',
+    'myroom', 'safari', 'food', 'viking',
+    ...(festivalStamps >= PARADE_STAMP_TARGET ? ['parade'] : []),
     ...(caveOpen ? ['cave'] : []),
     ...(p.plazaOpen ? ['harmonia'] : []),
     ...(shopState !== 'closed' ? ['shop'] : []),
@@ -514,15 +545,21 @@ export default function World() {
   const markers = [
     ...partIds.map((id) => ({ x: PART_SPOTS[id].pos[0], z: PART_SPOTS[id].pos[2] })),
     ...faults.map((id) => ({ x: BREAKABLE[id].pos[0], z: BREAKABLE[id].pos[2], color: '#E2574C' })),
+    ...festivalCases.filter(item => !festivalRecords[item.id]).map(item => {
+      const { pos } = SPOTS.find(spot => spot.id === item.id)
+      return { x: pos[0], z: pos[2], color: '#F5CC57' }
+    }),
   ]
   const promptFor = (id) => (faults.includes(id) ? `${BREAKABLE[id].name} 고장 수리하기` : PROMPTS[id])
   const dusk = p.signsDone && !p.letterSeen
   const sky = stopped ? '#C7CEDB' : dusk ? '#F6D3B0' : '#DCE8E6'
   const skyTop = stopped ? '#8E99AE' : dusk ? '#E58A6A' : '#5594B4'
 
+  if (festivalItem) return <FestivalField item={festivalItem} onClose={closeFestivalCase} />
+
   return (
     <div className="room-page world">
-      <Canvas shadows camera={{ position: [spawn[0], 8, spawn[1] - Math.cos(spawn[2]) * 12], fov: 55, far: 240 }} dpr={lowGfx ? 0.75 : 1} gl={{ powerPreference: 'high-performance' }}>
+      <Canvas shadows camera={{ position: cameraPosition.current, fov: 55, far: 240 }} dpr={lowGfx ? 0.75 : 1} gl={{ powerPreference: 'high-performance' }}>
         {/* 화면 밖 물체까지 처음에 셰이더를 미리 만들어 둔다. 달리다가 새 물체가 보일 때 멈칫하지 않게. */}
         <Preload all />
         {import.meta.env.DEV && <PerfProbe />}
@@ -543,9 +580,14 @@ export default function World() {
           voidStarted={p.voidStarted}
           caveOpen={caveOpen}
           faultKey={faults.join(',')}
+          carouselUnderRepair={!festivalRecords.carousel && !!p.festivalInvestigations?.carousel}
         />
+        <FestivalFacilities records={festivalRecords} />
         {partIds.map((id) => <PartSpot key={id} id={id} />)}
-        {p.voidBuilt && <VoidFollower posRef={posRef} headingRef={headingRef} />}
+        {p.voidBuilt && !nearbyCase && <VoidFollower
+          posRef={onFoot ? walkRef : posRef}
+          headingRef={onFoot ? walkHeading : headingRef}
+        />}
         {faults.map((id) => <FaultMarker key={id} position={BREAKABLE[id].pos} name={BREAKABLE[id].name} />)}
         {codex === 'silhouette' && <CodexSilhouette position={CODEX_POS} rotation={-0.4} />}
         {codex === 'revealed' && <CodexSilhouette position={CODEX_MEET_POS} rotation={0.9} revealed />}
@@ -610,6 +652,10 @@ export default function World() {
       </div>
       <div className="hud hud-minimap">
         <Minimap ref={carMark} viewRef={miniView} openIds={openIds} markers={markers} onClick={() => !busy && setBigMap(true)} />
+        <div className="festival-map-guide">
+          <span>축제 의뢰 <b>{festivalStamps}/{REPAIR_CASES.length}</b></span>
+          <small>노란 점 근처에서 <kbd>R</kbd> 조사</small>
+        </div>
         {p.voidBuilt && <button className="void-btn" onClick={() => setChat(true)}>🤖 보이드와 대화</button>}
         {faults.length > 0 && <p className="fault-note">오늘의 업무 · 고장 {faults.length}곳 (미니맵 빨간 점)</p>}
       </div>
@@ -655,7 +701,19 @@ export default function World() {
       {onFoot && nearCar && !near && !busy && (
         <button className="hud prompt" onClick={enterCar}>F · 차에 타기</button>
       )}
-      {near && !busy && (
+      {nearbyCase && !busy && (
+        <div className="hud festival-prompt">
+          <button className="festival-launch" onClick={openFestivalCase} aria-keyshortcuts="R">
+            <kbd aria-hidden="true">R</kbd>
+            <span><small>{nearbyCase.district}</small><strong>{festivalRecords[nearbyCase.id] ? '정비 결과 보기' : p.festivalInvestigations?.[nearbyCase.id]?.diagnosed ? '수리 이어하기' : '현장 조사 열기'}</strong></span>
+            <span className="festival-launch-arrow" aria-hidden="true">↗</span>
+          </button>
+          {!FESTIVAL_ENTRANCES[near] && <button className="festival-secondary" onClick={() => interact(near)}>
+            <kbd>E</kbd> {promptFor(near)}
+          </button>}
+        </div>
+      )}
+      {near && !nearbyCase && !busy && (
         <button className="hud prompt" onClick={() => interact(near)}>E · {promptFor(near)}</button>
       )}
       {dialog && <DialogBox lines={dialog.lines} onDone={dialog.onDone} />}

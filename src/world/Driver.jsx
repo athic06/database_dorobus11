@@ -43,6 +43,8 @@ export default function Driver({ posRef, headingRef, keys, view, colliders, half
     const dt = Math.min(rawDt, 0.1)
     if (parked) {
       speed.current = 0
+      car.current.position.copy(posRef.current)
+      car.current.rotation.y = headingRef.current
       const f = followRef?.current || posRef.current
       if (sun.current) {
         sun.current.position.set(f.x + 30, 50, f.z + 20)

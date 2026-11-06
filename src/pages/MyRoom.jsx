@@ -167,7 +167,7 @@ export default function MyRoom() {
   const busy = entry.active || !!dialog || !!panel
   const keys = useKeyboard((code) => {
     if (code === 'KeyE' && !busy && nearRef.current) interact(nearRef.current)
-  })
+  }, panel !== 'computer')
 
   useEffect(() => {
     if (!bubble) return
@@ -178,6 +178,13 @@ export default function MyRoom() {
   const start = posRef.current.clone().add(viewOffset(view.current))
   const promptText =
     near === 'car' && progress.carCheckDone ? '자동차 살펴보기' : near === 'sofa' && progress.sofaBroken ? '소파 피아노 · 고장 수리' : PROMPTS[near]
+
+  if (panel === 'computer') return (
+    <ComputerScreen
+      onClose={() => { setPanel(null); posRef.current.set(CHAIR_POS[0] + 1.2, 0, CHAIR_POS[2]) }}
+      onPiano={() => setPanel('piano')}
+    />
+  )
 
   return (
     <div className="room-page">
@@ -214,8 +221,6 @@ export default function MyRoom() {
           onMove={onMove}
           frozen={busy}
           cameraControlled={entry.active}
-          seated={panel === 'computer'}
-          face={panel === 'computer' ? -Math.PI / 2 : null}
         />
         <PostFX bloom={0.5} />
         <EntryCamera entry={entry} />
@@ -239,12 +244,6 @@ export default function MyRoom() {
       {panel === 'park' && <ParkPanel onClose={() => setPanel(null)} onOpenShop={() => setPanel('shop')} />}
       {panel === 'shop' && <ShopModal onClose={() => setPanel(null)} />}
       {panel === 'piano' && <PianoGame onClose={() => setPanel(null)} />}
-      {panel === 'computer' && (
-        <ComputerScreen
-          onClose={() => { setPanel(null); posRef.current.set(CHAIR_POS[0] + 1.2, 0, CHAIR_POS[2]) }}
-          onPiano={() => setPanel('piano')}
-        />
-      )}
       {panel === 'editor' && <TreasureEditor onClose={() => setPanel(null)} onOpenShop={() => setPanel('shop')} />}
       {panel === 'license' && (
         <LicenseCard

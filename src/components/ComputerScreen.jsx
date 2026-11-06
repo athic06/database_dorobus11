@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 import CellCatch from '../minigames/CellCatch.jsx'
 import { Challenge } from '../pages/Play.jsx'
+import { FestivalDesk } from '../pages/Repair.jsx'
 
 // 마이룸 컴퓨터 화면: 책상 의자에 앉으면 뜨는 2D 미니게임 바탕화면
 const APPS = [
   { id: 'catch', icon: '💎', name: '셀 캐치', desc: '떨어지는 CELL 받기' },
   { id: 'coding', icon: '🧩', name: '코딩 챌린지', desc: '최소 블록으로 길 찾기' },
   { id: 'piano', icon: '🎹', name: '피아노 게임', desc: '기억 모드, 음 맞히기' },
+  { id: 'repair', asset: '1F527', name: '정비 작업실', desc: '축제 개막 후 새 정비 의뢰' },
 ]
 
 export default function ComputerScreen({ onClose, onPiano }) {
@@ -28,12 +30,12 @@ export default function ComputerScreen({ onClose, onPiano }) {
           {app && <button className="pc-btn" onClick={() => setApp(null)}>← 바탕화면</button>}
           <button className="pc-btn" onClick={onClose}>일어나기 ✕</button>
         </div>
-        <div className="pc-screen">
+        <div className={`pc-screen${app === 'repair' ? ' pc-repair-screen' : ''}`}>
           {!app && (
             <div className="pc-desktop">
               {APPS.map((a) => (
                 <button key={a.id} className="pc-app" onClick={() => (a.id === 'piano' ? onPiano() : setApp(a.id))}>
-                  <span className="pc-icon">{a.icon}</span>
+                  {a.asset ? <img className="pc-icon" width="42" height="42" src={`${import.meta.env.BASE_URL}repair/openmoji/${a.asset}.svg`} alt="" /> : <span className="pc-icon">{a.icon}</span>}
                   <b>{a.name}</b>
                   <small>{a.desc}</small>
                 </button>
@@ -42,6 +44,7 @@ export default function ComputerScreen({ onClose, onPiano }) {
           )}
           {app === 'catch' && <CellCatch />}
           {app === 'coding' && <div className="pc-app-body"><Challenge /></div>}
+          {app === 'repair' && <FestivalDesk />}
         </div>
       </div>
     </div>

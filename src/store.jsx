@@ -92,7 +92,10 @@ export function StoreProvider({ children }) {
     return true
   }
 
-  const setProgress = (patch) => setData((d) => ({ ...d, progress: { ...d.progress, ...patch } }))
+  const setProgress = (patch) => setData((d) => ({
+    ...d,
+    progress: { ...d.progress, ...(typeof patch === 'function' ? patch(d.progress) : patch) },
+  }))
   // 시연 도구: 진행 상태를 통째로 바꾼다 (CELL, 가구는 그대로)
   const replaceProgress = (progress) => setData((d) => ({ ...d, progress }))
 

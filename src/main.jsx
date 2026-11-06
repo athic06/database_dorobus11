@@ -43,6 +43,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/store" element={<RequireAuth><Store /></RequireAuth>} />
           <Route path="/courses" element={<RequireAuth><Courses /></RequireAuth>} />
           <Route path="/play" element={<RequireAuth><Play /></RequireAuth>} />
+          <Route path="/repair/:caseId?" element={<RequireAuth><Navigate to="/myroom" replace /></RequireAuth>} />
           <Route path="/visit/:id" element={<RequireAuth><Visit /></RequireAuth>} />
           <Route path="/dev/world" element={import.meta.env.DEV ? <React.Suspense fallback={<p>미리보기 준비 중…</p>}><WorldPreview /></React.Suspense> : <Navigate to="/" replace />} />
           <Route path="/dev/portraits" element={import.meta.env.DEV ? <PortraitGallery /> : <Navigate to="/" replace />} />
