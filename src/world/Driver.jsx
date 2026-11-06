@@ -31,7 +31,7 @@ export default function Driver({ posRef, headingRef, keys, view, colliders, half
 
   useEffect(() => {
     if (!import.meta.env.DEV) return
-    window.__car = { teleport: (x, z, h = headingRef.current) => { posRef.current.set(x, 0, z); headingRef.current = h } }
+    window.__car = { teleport: (x, z, h = headingRef.current) => { posRef.current.set(x, 0, z); headingRef.current = h }, where: () => [posRef.current.x, posRef.current.z, headingRef.current] }
     return () => delete window.__car
   }, [posRef, headingRef])
 

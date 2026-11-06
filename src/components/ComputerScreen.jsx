@@ -3,7 +3,7 @@ import CellCatch from '../minigames/CellCatch.jsx'
 import { Challenge } from '../pages/Play.jsx'
 import { FestivalDesk } from '../pages/Repair.jsx'
 import { useStore } from '../store.jsx'
-import { countFestivalRepairs, hasRemoteRepairLicense, PARADE, REPAIR_CASES } from '../game/repairCases.js'
+import { countFestivalRepairs, hasRemoteRepairLicense, PARADE_STAMP_TARGET } from '../game/repairCases.js'
 
 // 마이룸 컴퓨터 화면: 책상 의자에 앉으면 뜨는 2D 미니게임 바탕화면
 const APPS = [
@@ -46,7 +46,7 @@ export default function ComputerScreen({ onClose, onPiano }) {
                     {locked ? <span className="pc-icon" aria-hidden="true">🔒</span> : a.asset ? <img className="pc-icon" width="42" height="42" src={`${import.meta.env.BASE_URL}repair/openmoji/${a.asset}.svg`} alt="" /> : <span className="pc-icon">{a.icon}</span>}
                     <b>{a.name}</b>
                     <small>{locked
-                      ? `잠김 · 시설 수리 ${countFestivalRepairs(records)}/${REPAIR_CASES.length} · 퍼레이드 ${records?.[PARADE.id] ? '완료' : '미완료'}`
+                      ? `잠김, 개막 퍼레이드를 마치면 열려요 (스탬프 ${countFestivalRepairs(records)}/${PARADE_STAMP_TARGET})`
                       : a.desc}</small>
                   </button>
                 )

@@ -1,29 +1,47 @@
 import { useEffect, useRef, useState } from 'react'
 import { useStore } from '../store.jsx'
-import { countFestivalRepairs, hasRemoteRepairLicense, PARADE, REPAIR_CASES, WORKSHOP, trialResult } from '../game/repairCases.js'
+import { countFestivalRepairs, hasRemoteRepairLicense, isTarget, ownedParts, PARADE, REPAIR_CASES, WORKSHOP, trialResult } from '../game/repairCases.js'
 import { replyFromIntent, voidReply } from '../game/voidRepair.js'
+import { judgeWithModel } from '../game/voidJudge.js'
 import RepairScene from './RepairScene.jsx'
 import FixMission from '../missions/FixMission.jsx'
 import { BREAKABLE, pendingFaults } from '../game/daily.js'
 import './repair.css'
 
 const ART = `${import.meta.env.BASE_URL}repair/openmoji/`
-const CATEGORY = ['관찰', '점검', '기록']
+const CATEGORY = ['관찰', '질문', '점검', '기록']
 const STEPS = ['살펴보기', '가설 시험', '복구 완료']
 const MIN_OBSERVATIONS = 2 // 가설을 세우기 전에 적어도 이만큼은 직접 살펴본다
 const MIN_HYPOTHESIS = 8 // 가설은 한 문장 이상
+const COUNTDOWN = 10 * 60 // 퍼레이드 개막 카운트다운(연출용, 끝나도 실패 없음)
 const emptyRecords = Object.freeze({})
 const image = (id) => `${ART}${id}.svg`
 const geminiDemo = import.meta.env.DEV && import.meta.env.MODE === 'repair-demo'
+const ANIMATED = ['run', 'repeat', 'kids', 'ledoff']
 const fieldPrompts = {
   food: '어떤 재료부터 떨어지는지 같이 보자.',
   carousel: '빈 상태로 한 바퀴 돌려 보자. 멈춘 자리를 기억해 둬.',
   safari: '3호차를 출발시켜 보자. 평지에선 잘 가는지도 봐.',
   viking: '운행 모드가 두 개야. 하나씩 돌려 보고 어디서 덜컹하는지 봐.',
   coaster: '아침과 저녁 운행을 비교해 보자. 마지막 언덕에서 뭐가 다를까?',
-  sign: '낮 화면부터 보고, 장식 불을 켜 보자. 몇 번째 줄이 달라질까?',
-  parade: '차량이 출발할 자리부터 무대까지 걸어 보자.',
+  sign: '낮 화면부터 보고, 밤까지 지켜보자. 어디가 달라질까?',
+  parade: '문제가 하나가 아닌 것 같아. 차량, 풍선, 조명, 길을 하나씩 살펴보자.',
   delivery: '상자를 하나 올려 봐. 어느 롤러에서 멈추는지 보자.',
+}
+
+// NPC 얼굴 대신 이름 첫 글자 배지
+const NpcBadge = ({ name }) => <span className="repair-npc-badge" aria-hidden="true">{name.slice(0, 1)}</span>
+
+function Countdown() {
+  const [left, setLeft] = useState(COUNTDOWN)
+  useEffect(() => {
+    const start = Date.now()
+    const id = window.setInterval(() => setLeft(Math.max(0, COUNTDOWN - Math.floor((Date.now() - start) / 1000))), 1000)
+    return () => window.clearInterval(id)
+  }, [])
+  const mm = String(Math.floor(left / 60)).padStart(2, '0')
+  const ss = String(left % 60).padStart(2, '0')
+  return <p className="repair-countdown" role="timer">{left ? <>개막까지 <b>{mm}:{ss}</b></> : <>곧 개막! 천천히 해도 괜찮아</>}</p>
 }
 
 function CasePlay({ item, records, investigation, surface, save, onComplete, onBack }) {
@@ -35,19 +53,22 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
   const [sideTab, setSideTab] = useState('chat') // 오른쪽 창: 대화 | 수첩
   const [guessing, setGuessing] = useState(false) // 가설 세우기 창
   const [known, setKnown] = useState(investigation.known ?? [])
-  const [fact, setFact] = useState(() => investigation.diagnosed
-    ? '부품을 조정하고 두 조건에서 시험해 보자.'
-    : fieldPrompts[item.id])
+  const [fact, setFact] = useState(() => investigation.diagnosed ? item.lines.toBench : fieldPrompts[item.id])
+  const [speaker, setSpeaker] = useState(null) // 하단 대사의 주인: null이면 보이드, 아니면 NPC 이름
   // 아이가 직접 적는 것들: 관찰마다 든 생각, 가설(문장)과 그 근거로 고른 관찰
   const [thoughts, setThoughts] = useState(investigation.thoughts ?? {})
-  const [draft, setDraft] = useState(investigation.hypothesis?.text ?? '')
+  const [draft, setDraft] = useState(investigation.hypothesis?.text ?? investigation.draft ?? '')
   const [evidence, setEvidence] = useState(investigation.hypothesis?.evidence ?? [])
   const [myHypothesis, setMyHypothesis] = useState(investigation.hypothesis ?? null)
-  const [tries, setTries] = useState(investigation.tries ?? 0) // 가설을 세운 횟수
-  const [hintLevel, setHintLevel] = useState(0) // ‘막혔어’를 누를 때마다 도움이 조금씩 구체적으로
+  const [tries, setTries] = useState(investigation.tries ?? 0) // 가설을 말한 횟수
+  const [solvedProblems, setSolvedProblems] = useState(investigation.solvedProblems ?? []) // 퍼레이드: 원인을 설명한 문제
+  const [verdict, setVerdict] = useState(null) // 마지막 판정 { verdict, text }
+  const [misses, setMisses] = useState(0) // 연속으로 정답이 아니었던 횟수 → 반복 실패 시 힌트
+  const [failures, setFailures] = useState(0) // 작업대 시험 실패 횟수
   const [question, setQuestion] = useState('')
   const [chat, setChat] = useState([])
   const [asking, setAsking] = useState(false)
+  const [judging, setJudging] = useState(false)
   const [settings, setSettings] = useState(() => Object.fromEntries(Object.entries(item.controls).map(([id, spec]) => [id, investigation.settings?.[id] ?? spec.initial])))
   const [verified, setVerified] = useState(investigation.verified ?? [])
   const [trial, setTrial] = useState(null)
@@ -58,10 +79,11 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
   const completed = useRef(false)
   const licensedAtEntry = useRef(hasRemoteRepairLicense(records))
   const titleRef = useRef(null)
-  const actionRef = useRef(null)
-  const evidenceReadyRef = useRef(null)
   const chatLogRef = useRef(null)
-  const facts = Object.fromEntries(item.clueList.map(clue => [clue.id, clue.fact]))
+  const questionRef = useRef(null)
+  // 수첩에는 누가 한 말인지 함께 적는다
+  const facts = Object.fromEntries(item.clueList.map(clue => [clue.id, clue.npc ? `${clue.npc}: ${clue.fact}` : clue.fact]))
+  const owned = ownedParts(records)
   const noteCount = known.length
   const canHypothesize = known.length >= MIN_OBSERVATIONS
   const inWorld = surface === 'world'
@@ -70,6 +92,7 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
   const working = phase === 'field' || phase === 'bench'
   const activeStep = ['field', 'bench', 'complete'].indexOf(phase)
   const portrait = <img className="repair-case-portrait" src={`${import.meta.env.BASE_URL}portraits/void.svg`} alt="보이드" />
+  const categories = CATEGORY.filter(type => item.clueList.some(clue => clue.type === type))
 
   useEffect(() => () => {
     window.clearTimeout(timer.current)
@@ -80,6 +103,16 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
     const log = chatLogRef.current
     if (log) log.scrollTop = log.scrollHeight
   }, [chat])
+  // 질문 칸은 적는 만큼 늘어난다(최대 6줄 정도, 그 뒤로는 스크롤)
+  useEffect(() => {
+    const box = questionRef.current
+    if (!box) return
+    box.style.height = 'auto'
+    box.style.height = `${Math.min(box.scrollHeight, 168)}px`
+  }, [question, sideTab])
+
+  const say = (text, who = null) => { setFact(text); setSpeaker(who) }
+  const voidSays = (text, input = null) => setChat(previous => [...previous.slice(-7), { input, reply: { text } }])
 
   const record = (clue) => {
     if (!known.includes(clue.id)) {
@@ -87,7 +120,7 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
       setKnown(next)
       save({ known: next })
     }
-    setFact(clue.fact)
+    say(clue.fact, clue.npc ?? null)
   }
   const animate = (ok, done, kind, index) => {
     if (running) return
@@ -102,37 +135,88 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
   }
   const inspect = (clue) => {
     setInspected(clue.id)
-    if (['run', 'repeat', 'kids'].includes(clue.id) || (item.id === 'food' && clue.id === 'delay') || (item.id === 'parade' && clue.id === 'route')) {
-      setFact(item.id === 'food' ? '투입구 바로 아래를 봐. 재료가 하나씩 떨어져.' : '움직임이 달라지는 순간을 눈여겨봐.')
+    if (ANIMATED.includes(clue.id) || (item.id === 'food' && clue.id === 'delay') || (item.id === 'parade' && ['route', 'hill'].includes(clue.id))) {
+      say(item.id === 'food' ? '투입구 바로 아래를 봐. 재료가 하나씩 떨어져.' : '움직임이 달라지는 순간을 눈여겨봐.')
       animate(clue.id === 'kids', () => record(clue), clue.id)
     } else {
       setTrial(null)
       record(clue)
     }
   }
-  const submitHypothesis = () => {
+
+  // 힌트(기준 문서 순서): 이미 확인한 단서의 힌트는 건너뛴다
+  const nextHint = () => {
+    if (phase === 'bench') {
+      const firstControl = Object.values(item.controls).find((spec, index) => !isTarget(spec, Object.values(settings)[index])) ?? Object.values(item.controls)[0]
+      return failures < 2
+        ? '네 가설이 맞다면 어떤 부품을 어떻게 바꿔야 할까? 한 번에 한 가지만 바꾸고 시험하면 무엇이 효과가 있는지 알 수 있어.'
+        : `‘${firstControl.label}’을 바꾸면 결과가 어떻게 달라지는지 비교해 봐.`
+    }
+    if (item.problems) {
+      const open = item.problems.find(problem => !solvedProblems.includes(problem.id))
+      const step = item.hints.find(candidate => !candidate.clues.some(id => known.includes(id)))
+      return step?.text ?? open?.hint ?? '수첩에 적은 관찰들 사이에 공통점이 있는지 찾아봐.'
+    }
+    const step = item.hints.find(candidate => !candidate.clues.some(id => known.includes(id)))
+    return step?.text ?? '단서는 충분히 모았어. 수첩의 관찰들을 이어서 무엇이 무엇 때문에 그렇게 됐는지 한 문장으로 적어 봐.'
+  }
+  const stuck = () => voidSays(nextHint(), '막혔어')
+
+  // 가설 말하기 → 보이드가 판정(정답, 부분 정답, 오답). 정답이어야 작업대로 간다
+  const submitHypothesis = async () => {
     const text = draft.trim()
     if (text.length < MIN_HYPOTHESIS) {
-      setFact('조금 더 자세히 적어 볼래? 무엇이 왜 그렇게 됐는지 한 문장으로.')
+      setVerdict({ verdict: 'unclear', text: '조금 더 자세히 적어 볼래? 무엇이 무엇 때문에 그렇게 됐는지 한 문장으로.' })
       return
     }
     if (!evidence.length) {
-      setFact('어떤 관찰 때문에 그렇게 생각했는지 하나 이상 골라 줘.')
+      setVerdict({ verdict: 'unclear', text: '어떤 관찰 때문에 그렇게 생각했는지 하나 이상 골라 줘.' })
+      return
+    }
+    if (judging) return
+    setJudging(true)
+    let modelVerdict = null
+    if (geminiDemo && !item.problems) {
+      try {
+        const response = await fetch('/api/void-judge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ caseId: item.id, known, hypothesis: text }),
+          signal: AbortSignal.timeout(8000),
+        })
+        if (response.ok) modelVerdict = (await response.json()).verdict ?? null
+      } catch {
+        // 키가 없거나 오프라인이면 로컬 판정만 쓴다
+      }
+    }
+    const result = judgeWithModel(item, text, known, modelVerdict, solvedProblems)
+    setJudging(false)
+    const nextTries = tries + 1
+    setTries(nextTries)
+    const solved = result.solved ?? solvedProblems
+    setSolvedProblems(solved)
+    save({ tries: nextTries, draft: text, solvedProblems: solved })
+    setChat(previous => [...previous.slice(-7), { input: text, reply: { text: result.text } }])
+    if (result.verdict !== 'correct') {
+      const missCount = misses + 1
+      setMisses(missCount)
+      // 반복해서 정답이 아니면 힌트를 순서대로 하나 더 준다
+      setVerdict(missCount >= 2 ? { ...result, text: `${result.text} 힌트: ${nextHint()}` } : result)
       return
     }
     pendingQuestion.current?.abort()
     pendingQuestion.current = null
     setAsking(false)
-    setChat(previous => previous.filter(message => message.reply))
     setTrial(null)
     const next = { text, evidence }
     setMyHypothesis(next)
-    setTries(tries + 1)
-    save({ diagnosed: true, hypothesis: next, tries: tries + 1 })
+    save({ diagnosed: true, hypothesis: next, tries: nextTries, solvedProblems: solved })
+    setVerdict(null)
+    setMisses(0)
     setGuessing(false)
-    setHintLevel(0)
     setPhase('bench')
-    setFact('네 가설을 시험해 보자. 가설이 맞다면 어떤 부품을 어떻게 바꿔야 할까? 바꾸기 전에 결과를 먼저 예상해 봐.')
+    voidSays(item.lines.toBench)
+    say(`${item.lines.correct} ${item.lines.toBench}`)
   }
   // 시험이 생각대로 안 되면 다시 현장으로 돌아가 관찰하고 가설을 고칠 수 있다
   const rethink = () => {
@@ -140,40 +224,32 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
     setTrial(null)
     save({ diagnosed: false })
     setPhase('field')
-    setHintLevel(0)
-    setFact('다시 살펴보자. 아직 안 해 본 조사가 있을까? 새로 알게 된 걸로 가설을 고쳐 봐.')
+    say('다시 살펴보자. 아직 안 해 본 조사가 있을까? 새로 알게 된 걸로 가설을 고쳐 봐.')
   }
   const writeThought = (id, value) => setThoughts(previous => ({ ...previous, [id]: value }))
   const keepThoughts = () => save({ thoughts })
-  // ‘막혔어’: 처음엔 생각을 정리하게 묻고, 다시 누르면 조사 방향, 그다음에야 구체적인 도움
-  const stuck = () => {
-    const level = hintLevel
-    setHintLevel(Math.min(level + 1, 2))
-    let text
-    if (phase === 'field') {
-      const missing = item.clueList.find(clue => item.required.includes(clue.id) && !known.includes(clue.id))
-      if (level === 0) text = '지금까지 본 것 중에 평소와 다른 점은 뭐였어? 언제, 어디서 문제가 생기는지 수첩에 먼저 정리해 보자.'
-      else if (level === 1) text = missing ? `‘${missing.type}’ 쪽 조사로 새로 알 수 있는 게 있을지도 몰라. 어떤 걸 확인해 볼래?` : '관찰은 충분히 모은 것 같아. 수첩을 보면서 네 생각으로 가설을 세워 봐.'
-      else text = missing ? item.hints[Math.min(item.required.indexOf(missing.id), item.hints.length - 1)] ?? item.hints.at(-1) : '수첩에 적은 관찰들 사이에 공통점이 있는지 찾아봐.'
-    } else {
-      const firstControl = Object.values(item.controls)[0]
-      if (level === 0) text = '네 가설이 맞다면 어떤 부품을 어떻게 바꿔야 할까? 결과를 먼저 예상하고 시험해 봐.'
-      else if (level === 1) text = '한 번에 한 가지만 바꾸고 시험하면 무엇이 효과가 있는지 알 수 있어.'
-      else text = `‘${firstControl.label}’을 바꾸면 결과가 어떻게 달라지는지 비교해 봐.`
-    }
-    setChat(previous => [...previous.slice(-3), { input: '막혔어', reply: { text } }])
-  }
   const test = (index) => {
     const ok = trialResult(item, settings, index)
     animate(ok, () => {
       if (!ok) {
-        setFact(`${item.fail} 네 가설로 이 결과를 설명할 수 있어? 설정을 바꿔 보거나 가설을 다시 세워 봐.`)
+        const failCount = failures + 1
+        setFailures(failCount)
+        let message = `${item.fail} 네 가설로 이 결과를 설명할 수 있어? 설정을 바꿔 보거나 가설을 다시 세워 봐.`
+        if (item.problems) {
+          // 일부만 해결했으면 해결한 문제는 인정하고 남은 문제를 알려 준다
+          const keys = item.testControls[index]
+          const done = keys.filter(key => isTarget(item.controls[key], settings[key])).map(key => item.controls[key].label)
+          const left = keys.filter(key => !isTarget(item.controls[key], settings[key])).map(key => item.controls[key].label)
+          message = `${done.length ? `좋아! ${done.join(', ')} 문제는 해결했어. ` : ''}이제 남은 문제: ${left.join(', ')}. 가진 부품으로 해결할 방법을 골라 봐.`
+        }
+        say(message)
+        if (failCount >= 2) voidSays(nextHint(), '시험이 또 실패했어')
         return
       }
       const next = [...new Set([...verified, index])]
       setVerified(next)
       save({ verified: next })
-      setFact(item.pass)
+      say(item.pass)
       if (next.length === item.tests.length && !completed.current) {
         completed.current = true
         onComplete()
@@ -188,8 +264,15 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
     setSettings(next)
     setVerified(stillVerified)
     setTrial(null)
-    setFact('설정을 바꿨어요. 아래에서 시험해 보세요.')
+    say('설정을 바꿨어요. 아래에서 시험해 보세요.')
     save({ settings: next, verified: stillVerified })
+  }
+  // 퍼레이드: 가진 부품으로만 해결 방법을 고를 수 있다
+  const optionLocked = (spec, index) => {
+    const part = spec.parts?.[index]
+    if (!part || owned.includes(part)) return false
+    const anyOwned = spec.parts.some(candidate => candidate && owned.includes(candidate))
+    return anyOwned
   }
   const ask = async (input, quick = false) => {
     input = input.trim()
@@ -216,7 +299,7 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
       const controller = new AbortController()
       pendingQuestion.current = controller
       setAsking(true)
-      setChat(previous => [...previous.slice(-3), { input, reply: null }])
+      setChat(previous => [...previous.slice(-7), { input, reply: null }])
       try {
         const response = await fetch('/api/void-demo', {
           method: 'POST',
@@ -237,11 +320,14 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
       setChat(previous => [...previous.slice(0, -1), { input, reply }])
       return
     }
-    setChat(previous => [...previous.slice(-3), { input, reply }])
+    setChat(previous => [...previous.slice(-7), { input, reply }])
   }
 
+  const records6 = REPAIR_CASES.filter(candidate => records[candidate.id])
+  const hudSpeaker = speaker ? <><NpcBadge name={speaker} /><p><b>{speaker}</b>{fact}</p></> : <>{portrait}<p><b>보이드</b>{fact}</p></>
+
   // 게임 화면 배치: 2D 장면이 화면 전체를 채우고, 그 위에
-  //  왼쪽 위: 사건 제목과 진행 단계 / 오른쪽: 보이드 대화와 정비 수첩 / 아래: 보이드 대사와 조사·수리 버튼
+  //  왼쪽 위: 사건 제목과 진행 단계 / 오른쪽: 보이드 대화와 정비 수첩 / 아래: 대사와 조사, 수리 버튼
   return (
     <section className={`repair-case repair-stage${inWorld ? ' in-world' : ' in-desk'}`}>
       <div className="repair-stage-scene">
@@ -252,7 +338,7 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
         {portrait}
         <div>
           <p className="repair-kicker">
-            {item.district} <span aria-hidden="true">/</span> {inWorld ? '축제 전 시설 점검' : '마이룸 정비 작업실'}
+            {item.district} <span aria-hidden="true">/</span> {inWorld ? '축제 전 시설 점검' : '마이룸 원격 수리실'}
           </p>
           <h2 ref={titleRef} tabIndex={-1}>{item.title}</h2>
           <ol className="repair-steps" aria-label="수리 진행 단계">
@@ -262,6 +348,7 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
               </li>
             ))}
           </ol>
+          {item.problems && working && <Countdown />}
         </div>
       </header>
 
@@ -273,10 +360,11 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
         {sideTab === 'chat' && (
           <section className="repair-conversation" aria-label="보이드와 대화">
             <div className="repair-chat-log" ref={chatLogRef} role="log" aria-label="보이드 대화 기록">
-              <p className="repair-chat-bubble">{phase === 'bench' ? '작업대를 열었어. 어떤 부품이나 시험이 궁금해?' : phase === 'complete' ? item.resolution : item.request}</p>
+              {phase === 'field' && <p className="repair-chat-bubble repair-chat-npc"><b>{item.client}</b>{item.request}</p>}
+              <p className="repair-chat-bubble">{phase === 'bench' ? item.lines.toBench : phase === 'complete' ? item.lines.success : item.lines.start}</p>
               {chat.map(({ input, reply }, index) => {
                 return <div className="repair-chat-turn" key={index}>
-                  <p className="repair-chat-bubble repair-chat-player"><b>나</b>{input}</p>
+                  {input && <p className="repair-chat-bubble repair-chat-player"><b>나</b>{input}</p>}
                   <div className="repair-chat-bubble">
                     <p>{reply?.text ?? '생각 중…'}</p>
                   </div>
@@ -289,7 +377,14 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
                 event.preventDefault()
                 void ask(question)
               }}>
-                <input aria-label="보이드에게 질문" placeholder="궁금한 점을 물어봐" value={question} maxLength={180} onChange={event => setQuestion(event.target.value)} />
+                <textarea ref={questionRef} rows={2} aria-label="보이드에게 질문" placeholder={'궁금한 점을 물어봐\n(Enter 보내기, Shift+Enter 줄 바꿈)'} value={question} maxLength={300}
+                  onChange={event => setQuestion(event.target.value)}
+                  onKeyDown={event => {
+                    if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+                      event.preventDefault()
+                      void ask(question)
+                    }
+                  }} />
                 <button className="repair-primary" type="submit" disabled={asking || !question.trim()}>보내기</button>
               </form>
             </>}
@@ -312,36 +407,40 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
                   onBlur={keepThoughts}
                 />
               </li>
-            ))}</ul> : <p>아직 기록이 없어요. 현장에서 직접 살펴본 것을 여기 모아요.</p>}
-            {item.id === 'parade' && known.includes('notes') && <ul>{REPAIR_CASES.filter(candidate => records[candidate.id]).map(candidate => <li key={candidate.id}><b>{candidate.district}</b> {candidate.resolution}</li>)}</ul>}
+            ))}</ul> : <p>아직 기록이 없어요. 현장에서 직접 살펴보거나 물어본 것을 여기 모아요.</p>}
+            {item.id === 'parade' && known.includes('notes') && (
+              records6.length
+                ? <ul className="repair-note-archive">{records6.map(candidate => <li key={candidate.id}><b>{candidate.district}</b> {candidate.resolution}</li>)}</ul>
+                : <p>아직 고친 사건이 없어요.</p>
+            )}
           </section>
         )}
       </aside>
 
       {working && (
         <div className="repair-hud-bottom">
-          {/* 보이드 대사: 게임 대화창처럼 버튼 바로 위에 띄운다 */}
-          <div className="repair-hud-line" role="status">
-            {portrait}
-            <p><b>보이드</b>{fact}</p>
+          {/* 대사: 게임 대화창처럼 버튼 바로 위에 띄운다. NPC에게 물었을 때는 그 NPC가 말한다 */}
+          <div className={`repair-hud-line${speaker ? ' is-npc' : ''}`} role="status">
+            {hudSpeaker}
             {phase === 'field' && inspected && <button className="repair-text-button" onClick={() => setSideTab('notes')}>수첩에 내 생각 적기</button>}
           </div>
 
           {phase === 'field' && (
             <div className="repair-hud-actions">
               <div className="repair-tabs" aria-label="조사 방법">
-                {CATEGORY.filter(type => item.clueList.some(clue => clue.type === type)).map(type => (
+                {categories.map(type => (
                   <button key={type} aria-pressed={type === category} onClick={() => setCategory(type)}>{type}</button>
                 ))}
               </div>
-              <div className="repair-action-row" ref={actionRef}>
+              <div className="repair-action-row">
                 {item.clueList.filter(clue => clue.type === category).map(clue => (
-                  <button key={clue.id} className="repair-action" data-done={known.includes(clue.id)} disabled={running || (clue.id === 'repeat' && !known.includes('run'))} onClick={() => inspect(clue)}>
-                    {clue.label}{known.includes(clue.id) ? ' ✓' : ''}
+                  <button key={clue.id} className={`repair-action${clue.npc ? ' repair-action-ask' : ''}`} data-done={known.includes(clue.id)} disabled={running || (clue.id === 'repeat' && !known.includes('run'))} onClick={() => inspect(clue)}>
+                    {clue.npc && <small>{clue.npc}에게</small>}
+                    {clue.npc ? `“${clue.label}”` : clue.label}{known.includes(clue.id) ? ' ✓' : ''}
                   </button>
                 ))}
-                <button className="repair-action repair-action-go" disabled={running || !canHypothesize} onClick={() => setGuessing(true)}
-                  title={canHypothesize ? '' : `먼저 ${MIN_OBSERVATIONS}가지 이상 살펴봐요`}>내 가설 세우기 →</button>
+                <button className="repair-action repair-action-go" disabled={running || !canHypothesize} onClick={() => { setVerdict(null); setGuessing(true) }}
+                  title={canHypothesize ? '' : `먼저 ${MIN_OBSERVATIONS}가지 이상 살펴봐요`}>내 가설 말하기 →</button>
               </div>
               <span className="repair-evidence">살펴본 것 {known.length}개</span>
             </div>
@@ -352,6 +451,7 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
           )}
           {phase === 'bench' && (
             <div className="repair-hud-actions">
+              {item.problems && <p className="repair-parts">가진 부품: {owned.length ? owned.join(', ') : '없음'}</p>}
               <div className="repair-bench-row">
                 {Object.entries(item.controls).map(([id, spec]) => item.id === 'carousel' ? (
                   <label key={id} className="repair-control">{spec.label}
@@ -360,9 +460,13 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
                 ) : (
                   <fieldset key={id} className="repair-control" disabled={running}>
                     <legend>{spec.label}</legend>
-                    <div className="repair-chips">{spec.options.map((option, index) => (
-                      <button key={option} type="button" aria-pressed={settings[id] === index} onClick={() => adjust(id, index)}>{option}</button>
-                    ))}</div>
+                    <div className="repair-chips">{spec.options.map((option, index) => {
+                      const locked = optionLocked(spec, index)
+                      return <button key={option} type="button" aria-pressed={settings[id] === index} disabled={locked}
+                        title={locked ? `${spec.parts[index]} 부품이 필요해요` : undefined} onClick={() => adjust(id, index)}>
+                        {locked ? '🔒 ' : ''}{option}
+                      </button>
+                    })}</div>
                   </fieldset>
                 ))}
               </div>
@@ -381,14 +485,19 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
         </div>
       )}
 
-      {/* 원인 고르기: 장면 위에 뜨는 선택 창 */}
+      {/* 가설 말하기: 장면 위에 뜨는 창. 보이드가 정답, 부분 정답, 오답을 판정한다 */}
       {phase === 'field' && guessing && (
         <div className="repair-overlay" onClick={event => event.target === event.currentTarget && setGuessing(false)}>
-          <fieldset className="repair-hypotheses repair-overlay-card" ref={evidenceReadyRef}>
+          <fieldset className="repair-hypotheses repair-overlay-card">
             <legend>왜 이런 일이 생겼을까?</legend>
-            <p className="repair-overlay-line"><b>보이드</b>정답을 맞히는 게 아니라 네 생각을 적는 거야. 틀려도 괜찮아, 작업대에서 직접 시험해 보면 돼.</p>
+            <p className="repair-overlay-line"><b>보이드</b>{item.problems
+              ? '문제가 여러 개야. 문제마다 무엇 때문에 생겼는지 적어 줘. 줄을 바꿔서 하나씩 적어도 좋아.'
+              : '네가 찾은 원인을 말해 줘. 무엇이 무엇 때문에 그렇게 됐는지 한 문장으로!'}</p>
+            {item.problems && <ul className="repair-problem-list">{item.problems.map(problem => (
+              <li key={problem.id} data-done={solvedProblems.includes(problem.id)}>{solvedProblems.includes(problem.id) ? '✓' : '·'} {problem.name}</li>
+            ))}</ul>}
             <textarea className="repair-hypothesis-input" aria-label="내 가설" placeholder="예: ○○ 때문에 △△가 되어서 멈추는 것 같아."
-              value={draft} maxLength={200} rows={3} autoFocus onChange={event => setDraft(event.target.value)} />
+              value={draft} maxLength={400} rows={item.problems ? 5 : 3} autoFocus onChange={event => setDraft(event.target.value)} />
             <p className="repair-overlay-sub">어떤 관찰 때문에 그렇게 생각했어?</p>
             <div className="repair-evidence-pick">
               {known.map(id => (
@@ -398,34 +507,44 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
                 </label>
               ))}
             </div>
-            <p className="repair-overlay-line repair-overlay-status" role="status">{fact}</p>
+            {verdict && <p className={`repair-overlay-line repair-verdict repair-verdict-${verdict.verdict}`} role="status"><b>보이드</b>{verdict.text}</p>}
             <div className="repair-overlay-buttons">
               <button className="repair-text-button" onClick={() => setGuessing(false)}>더 조사하기</button>
-              <button className="repair-primary" disabled={running} onClick={submitHypothesis}>작업대에서 시험해 보기</button>
+              <button className="repair-primary" disabled={running || judging} onClick={submitHypothesis}>{judging ? '보이드가 생각 중…' : '보이드에게 말하기'}</button>
             </div>
           </fieldset>
         </div>
       )}
 
       {phase === 'complete' && (
-        <div className="repair-overlay">
+        <div className={`repair-overlay${item.problems ? ' repair-ending' : ''}`}>
+          {item.problems && <div className="repair-fireworks" aria-hidden="true">{Array.from({ length: 7 }, (_, i) => <span key={i} />)}</div>}
           <div className="repair-success repair-overlay-card">
             <img src={image(item.asset)} alt="" />
-            <h2>{item.id === 'parade' ? '축제가 열렸어요!' : '시설이 다시 움직여요!'}</h2>
-            {myHypothesis && <div className="repair-compare">
+            <h2>{item.problems ? '축제가 열렸어요!' : '시설이 다시 움직여요!'}</h2>
+            <p className="repair-overlay-line"><b>보이드</b>{item.lines.success}</p>
+            {myHypothesis && !item.problems && <div className="repair-compare">
               <div><b>내가 세운 가설</b><p>{myHypothesis.text}</p></div>
               <div><b>실제로 일어난 일</b><p>{item.resolution}</p></div>
             </div>}
-            {!myHypothesis && <p>{item.resolution}</p>}
-            {tries > 1 && <p className="repair-tries">가설을 {tries}번 고쳐 세우며 찾아냈어요!</p>}
-            {item.part && <p>정비 인증 스탬프 · 해금 부품 <b>{item.part}</b></p>}
+            {(!myHypothesis || item.problems) && <p>{item.resolution}</p>}
+            {tries > 1 && <p className="repair-tries">가설을 {tries}번 고쳐 말하며 찾아냈어요!</p>}
+            {item.part && <p>정비 인증 스탬프 획득, 해금 부품 <b>{item.part}</b></p>}
+            {item.problems && (
+              <>
+                <p className="repair-cheer-title">퍼레이드 길가에서 환호해요!</p>
+                <ul className="repair-cheer">{records6.map(candidate => (
+                  <li key={candidate.id}><img src={image(candidate.asset)} alt="" /><span>{candidate.client}</span></li>
+                ))}</ul>
+                <p className="repair-overlay-line"><b>보이드</b>{item.lines.final}</p>
+              </>
+            )}
             {earnedLicense && (
               <div className="repair-license">
                 <span aria-hidden="true">🪪</span>
-                <div><b>원격 수리 자격증을 받았어요!</b><p>마이룸 컴퓨터의 ‘원격 수리실’에서 새 의뢰를 받을 수 있어요.</p></div>
+                <div><b>정식 정비사가 됐어요! 원격 수리 자격증을 받았어요</b><p>마이룸 컴퓨터의 ‘원격 수리실’이 열렸어요. 가진 부품으로 새 의뢰를 해결해 봐요.</p></div>
               </div>
             )}
-            {item.id === PARADE.id && !licensed && <p>원격 수리 자격증을 받으려면 남은 축제 시설 {REPAIR_CASES.length - countFestivalRepairs(records)}곳도 고쳐야 해요.</p>}
             <button className="repair-primary" onClick={onBack}>{inWorld ? '도로랜드로 돌아가기' : '작업 목록으로'}</button>
           </div>
         </div>
@@ -473,6 +592,7 @@ function AssetCredit() {
   return <footer className="repair-credit">아이콘 <a href="https://openmoji.org/">OpenMoji</a> · <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>, 배경과 소품 <a href="https://kenney.nl/">Kenney</a> CC0, 버거 재료 <a href="https://davemarian.itch.io/food-and-ingredients-assets-from-gamejam">Dave Marian</a></footer>
 }
 
+// 마이룸 컴퓨터의 원격 수리실. 개막 퍼레이드를 마쳐 정식 정비사(원격 수리 자격증)가 되면 열린다.
 export function FestivalDesk() {
   const { user, progress } = useStore()
   const [active, setActive] = useState(null)
@@ -480,9 +600,10 @@ export function FestivalDesk() {
   const records = progress.festivalRepairs ?? emptyRecords
   if (!hasRemoteRepairLicense(records)) return null
 
-  const archive = [...REPAIR_CASES, PARADE]
+  const archive = [...REPAIR_CASES, PARADE].filter(candidate => records[candidate.id])
   const item = [WORKSHOP, ...archive].find(candidate => candidate.id === active)
   const faults = progress.carCheckDone ? pendingFaults(user.id, progress.work) : []
+  const parts = ownedParts(records)
   return (
     <section className={`repair-page repair-desk${item ? ' has-case' : ''}`}>
       {item ? (
@@ -496,7 +617,7 @@ export function FestivalDesk() {
           <h2>원격 수리실</h2>
           <div className="repair-license">
             <span aria-hidden="true">🪪</span>
-            <div><b>원격 수리 자격증</b><p>{user.name} · 도로랜드 축제 정비 완료</p></div>
+            <div><b>원격 수리 자격증</b><p>{user.name}, 도로랜드 정식 정비사. 정비 인증 스탬프 {countFestivalRepairs(records)}/{REPAIR_CASES.length}, 가진 부품: {parts.join(', ') || '없음'}</p></div>
           </div>
           <h3>원격 의뢰</h3>
           <div className="repair-cards">
@@ -528,6 +649,7 @@ export function FestivalDesk() {
               </button>
             ))}
           </div>
+          {countFestivalRepairs(records) < REPAIR_CASES.length && <p>아직 고치지 않은 축제 시설은 도로랜드에서 직접 조사할 수 있어요.</p>}
         </>
       )}
       {fixing && <FixMission id={fixing} onClose={() => setFixing(null)} onFixed={() => setFixing(null)} />}
@@ -535,3 +657,4 @@ export function FestivalDesk() {
     </section>
   )
 }
+

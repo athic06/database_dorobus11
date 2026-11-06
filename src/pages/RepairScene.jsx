@@ -114,8 +114,8 @@ function Food({ settings, trial, inspected, field, known, progress }) {
   </>
   const extra = field || trial?.index !== 0
   const branchX = [104, 241, 301][settings.junction]
-  // 갈림길이 어디로 열려 있는지는 설치 기록이나 치즈 늦추기를 해 봐야 보인다
-  const showBranch = extra && (!field || known.includes('npc') || known.includes('delay'))
+  // 갈림길이 어디로 열려 있는지는 투입 순서를 점검하거나 치즈 늦추기를 해 봐야 보인다
+  const showBranch = extra && (!field || known.includes('order') || known.includes('delay'))
   return <>
     {showBranch && <path d={diverted ? 'M245 76h66l61 23' : `M${branchX} 64v23h${branchX < 210 ? 63 : -55}`}
       stroke={diverted ? '#a85c45' : '#a38a5b'} strokeWidth="5" strokeDasharray="4 5" fill="none" opacity=".6" />}

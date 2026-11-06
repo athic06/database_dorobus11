@@ -4,7 +4,7 @@ import './repair.css'
 
 // 개발 서버 전용: 고장 수사대 2D 장면을 한 화면에 모아 본다 (#/dev/repair). 그림 손볼 때 확인용.
 const initial = (item) => Object.fromEntries(Object.entries(item.controls).map(([id, spec]) => [id, spec.initial]))
-const solved = (item) => Object.fromEntries(Object.entries(item.controls).map(([id, spec]) => [id, spec.target]))
+const solved = (item) => Object.fromEntries(Object.entries(item.controls).map(([id, spec]) => [id, Array.isArray(spec.target) ? spec.target[0] : spec.target]))
 
 export default function RepairGallery() {
   return (
