@@ -6,6 +6,7 @@ const TOPICS = [
   [/기울|높이|받침/u, ['height', 'level']],
   [/언제|비 온|최근|바뀌|변화/u, ['rain', 'npc', 'log']],
   [/레일|설탕|가루|바람/u, ['rail', 'delay', 'run']],
+  [/좌석|부품|상자|교체|밑에/u, ['npc', 'cargo', 'obstacle']],
   [/먹이|짐|무게|배터리|손님/u, ['weight', 'cargo', 'load', 'run']],
   [/롤러|롤링|방향/u, ['roller', 'run']],
   [/기록|노트/u, ['notes', 'log']],
