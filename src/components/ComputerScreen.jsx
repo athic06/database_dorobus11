@@ -46,7 +46,7 @@ export default function ComputerScreen({ onClose, onPiano }) {
                     {locked ? <span className="pc-icon" aria-hidden="true">🔒</span> : a.asset ? <img className="pc-icon" width="42" height="42" src={`${import.meta.env.BASE_URL}repair/openmoji/${a.asset}.svg`} alt="" /> : <span className="pc-icon">{a.icon}</span>}
                     <b>{a.name}</b>
                     <small>{locked
-                      ? `잠김, 개막 퍼레이드를 마치면 열려요 (스탬프 ${countFestivalRepairs(records)}/${PARADE_STAMP_TARGET})`
+                      ? `잠김, 개막 퍼레이드를 마치면 열려요 (스탬프 필요 ${PARADE_STAMP_TARGET} / 모음 ${countFestivalRepairs(records)})`
                       : a.desc}</small>
                   </button>
                 )

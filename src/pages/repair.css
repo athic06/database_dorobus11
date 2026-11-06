@@ -246,7 +246,7 @@
    2D 장면이 화면 전체를 채우고, 제목(왼쪽 위), 보이드 창(오른쪽), 대사와 버튼(아래)이 그 위에 떠 있다. */
 .repair-field-screen { position: fixed; inset: 0; z-index: 30; overflow: hidden; min-height: 0; }
 .repair-desk.has-case { position: relative; height: 100%; min-height: 520px; padding: 0; overflow: hidden; }
-.repair-stage { --side: clamp(280px, 27vw, 380px); --gap: clamp(10px, 1.4vw, 18px); position: absolute; inset: 0; }
+.repair-stage { --side: clamp(340px, 34vw, 500px); --gap: clamp(10px, 1.4vw, 18px); position: absolute; inset: 0; }
 .repair-stage-scene { position: absolute; inset: 0; }
 .repair-scene-stage { position: absolute; inset: 0; margin: 0; border: 0; border-radius: 0; box-shadow: none; background: #e7d5b7; }
 /* 뒤 채움: 같은 그림을 화면 비율에 맞게 꽉 채우고 흐리게 */
@@ -345,7 +345,7 @@
 @keyframes repair-fade { from { opacity: 0; } to { opacity: 1; } }
 
 /* 마이룸 컴퓨터 안에서는 화면이 작으니 오른쪽 창을 좁게 */
-.repair-desk.has-case .repair-stage { --side: clamp(240px, 30%, 330px); }
+.repair-desk.has-case .repair-stage { --side: clamp(300px, 36%, 440px); }
 .repair-field-screen .repair-credit { position: absolute; right: clamp(10px, 1.4vw, 18px); bottom: 2px; z-index: 3; margin: 0; padding: 0; font-size: .62rem; opacity: .7; }
 
 /* 좁은 화면: 보이드 창을 아래로 내리고 장면은 위쪽에 */
@@ -364,7 +364,7 @@
   width: calc(100% - var(--side) - var(--gap) * 3); height: calc(100% - 64px - var(--bottom, 150px));
 }
 .repair-scene.repair-scene-stage .repair-stage-fill { width: 108%; }
-.repair-stage { --side: clamp(260px, 24vw, 340px); --bottom: 150px; }
+.repair-stage { --side: clamp(340px, 34vw, 500px); --bottom: 150px; }
 /* 아래 버튼: 조사 방법 탭과 버튼을 한 줄로 */
 .repair-hud-actions { flex-direction: row; flex-wrap: wrap; align-items: center; gap: .5rem .8rem; padding: .5rem .6rem; }
 .repair-hud-actions .repair-tabs { flex: none; border: 0; }
@@ -498,3 +498,6 @@
 /* 퍼레이드처럼 조정할 것이 넷이면 두 줄로 */
 .repair-bench-row:has(> :nth-child(4)) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; }
 .repair-bench-row:has(> :nth-child(4)) .repair-chips button { font-size: .78rem; padding: .3rem .5rem; }
+
+/* Gemini 연결 표시 */
+.repair-ai-badge { margin-left: .35rem; padding: .05rem .35rem; border-radius: 999px; background: #486957; color: #fff; font-size: .62rem; font-style: normal; vertical-align: middle; }

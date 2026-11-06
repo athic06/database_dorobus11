@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useStore } from '../store.jsx'
 import { countFestivalRepairs, hasRemoteRepairLicense, isTarget, ownedParts, PARADE, REPAIR_CASES, WORKSHOP, trialResult } from '../game/repairCases.js'
-import { replyFromIntent, voidReply } from '../game/voidRepair.js'
+import { voidReply } from '../game/voidRepair.js'
 import { judgeWithModel } from '../game/voidJudge.js'
 import RepairScene from './RepairScene.jsx'
 import FixMission from '../missions/FixMission.jsx'
@@ -16,7 +16,8 @@ const MIN_HYPOTHESIS = 8 // 가설은 한 문장 이상
 const COUNTDOWN = 10 * 60 // 퍼레이드 개막 카운트다운(연출용, 끝나도 실패 없음)
 const emptyRecords = Object.freeze({})
 const image = (id) => `${ART}${id}.svg`
-const geminiDemo = import.meta.env.DEV && import.meta.env.MODE === 'repair-demo'
+// 개발 서버에서는 Gemini 보이드(server/void-demo.mjs, 프롬프트: server/prompts)를 쓴다. 빌드된 정적 사이트는 게임 규칙만으로 답한다
+const aiVoice = import.meta.env.DEV
 const ANIMATED = ['run', 'repeat', 'kids', 'ledoff']
 const fieldPrompts = {
   food: '어떤 재료부터 떨어지는지 같이 보자.',
@@ -69,6 +70,7 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
   const [chat, setChat] = useState([])
   const [asking, setAsking] = useState(false)
   const [judging, setJudging] = useState(false)
+  const [aiOn, setAiOn] = useState(null) // Gemini 보이드 연결 여부(null: 아직 모름)
   const [settings, setSettings] = useState(() => Object.fromEntries(Object.entries(item.controls).map(([id, spec]) => [id, investigation.settings?.[id] ?? spec.initial])))
   const [verified, setVerified] = useState(investigation.verified ?? [])
   const [trial, setTrial] = useState(null)
@@ -112,6 +114,23 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
   }, [question, sideTab])
 
   const say = (text, who = null) => { setFact(text); setSpeaker(who) }
+  // 개발 서버의 Gemini 보이드 호출. 실패하면 null(게임 규칙만으로 답한다)
+  const askGemini = async (path, body, timeout, signal) => {
+    if (!aiVoice) return null
+    try {
+      const response = await fetch(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(timeout)]) : AbortSignal.timeout(timeout),
+      })
+      setAiOn(response.ok)
+      return response.ok ? await response.json() : null
+    } catch {
+      setAiOn(false)
+      return null
+    }
+  }
   const voidSays = (text, input = null) => setChat(previous => [...previous.slice(-7), { input, reply: { text } }])
 
   const record = (clue) => {
@@ -175,21 +194,9 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
     }
     if (judging) return
     setJudging(true)
-    let modelVerdict = null
-    if (geminiDemo && !item.problems) {
-      try {
-        const response = await fetch('/api/void-judge', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ caseId: item.id, known, hypothesis: text }),
-          signal: AbortSignal.timeout(8000),
-        })
-        if (response.ok) modelVerdict = (await response.json()).verdict ?? null
-      } catch {
-        // 키가 없거나 오프라인이면 로컬 판정만 쓴다
-      }
-    }
-    const result = judgeWithModel(item, text, known, modelVerdict, solvedProblems)
+    // Gemini(개발 서버, 프롬프트 문서 기준)가 의미로 판정. 키가 없거나 오프라인이면 로컬 규칙만 쓴다
+    const model = await askGemini('/api/void-judge', { caseId: item.id, known, hypothesis: text, solved: solvedProblems }, 22000)
+    const result = judgeWithModel(item, text, known, model, solvedProblems)
     setJudging(false)
     const nextTries = tries + 1
     setTries(nextTries)
@@ -278,43 +285,35 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
     input = input.trim()
     if (!input || pendingQuestion.current) return
     if (!quick) setQuestion('')
+    // 게임 상태로 바로 답할 수 있는 것(시험 중, 지금 설정값)은 규칙으로, 나머지는 Gemini 보이드가 답한다
     let reply = voidReply(input, item, known, facts)
+    let fixed = false
     if (phase === 'bench') {
       const nextTest = item.tests.find((_, index) => !verified.includes(index))
+      fixed = true
       if (running) reply = { text: '지금 시험 중이야. 장치가 끝까지 움직이는지 먼저 보자.' }
       else if (/지금|현재|설정|어디에|어느 쪽/u.test(input) && !quick) {
         const current = Object.entries(item.controls).map(([id, spec]) => `${spec.label}은 ‘${spec.options[settings[id]]}’`)
         reply = { text: `작업대에서 지금 고른 값이야. ${current.join(', ')}.` }
       }
-      else if (trial && !trial.ok) reply = { text: item.fail + ' 네 가설과 어떻게 달라?' }
-      else if (quick || /시험|다음|힌트|뭐부터|어디부터/u.test(input)) {
+      else if (quick) {
         reply = { text: nextTest
           ? `‘${nextTest}’부터 해 보자. 부품을 조정한 뒤 실제로 어떻게 움직이는지 확인할 수 있어.`
           : '모든 시험을 통과했어.' }
       } else {
-        reply = { text: '네 가설에 따르면 어떤 결과가 나와야 해? 예상해 보고 시험해서 확인해 봐.' }
+        fixed = false
+        reply = { text: trial && !trial.ok ? item.fail + ' 네 가설과 어떻게 달라?' : '네 가설에 따르면 어떤 결과가 나와야 해? 예상해 보고 시험해서 확인해 봐.' }
       }
     }
-    if (geminiDemo && phase === 'field' && !quick && !/힌트|어디부터|다음에|뭐부터/u.test(input)) {
+    if (!fixed && !quick) {
       const controller = new AbortController()
       pendingQuestion.current = controller
       setAsking(true)
       setChat(previous => [...previous.slice(-7), { input, reply: null }])
-      try {
-        const response = await fetch('/api/void-demo', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ caseId: item.id, known, question: input }),
-          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(8000)]),
-        })
-        if (response.ok) {
-          const result = await response.json()
-          reply = replyFromIntent(result, item, known, facts) ?? reply
-        }
-      } catch {
-        // Local guidance also covers missing credentials, rate limits and offline demos.
-      }
+      const history = chat.slice(-4).map(turn => ({ player: turn.input ?? '', void: turn.reply?.text ?? '' }))
+      const result = await askGemini('/api/void-chat', { caseId: item.id, known, question: input, phase, history }, 14000, controller.signal)
       if (controller.signal.aborted) return
+      if (result?.reply) reply = { text: result.reply }
       pendingQuestion.current = null
       setAsking(false)
       setChat(previous => [...previous.slice(0, -1), { input, reply }])
@@ -354,7 +353,7 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
 
       <aside className="repair-hud-side">
         <div className="repair-side-tabs" role="tablist" aria-label="보이드 창">
-          <button role="tab" aria-selected={sideTab === 'chat'} onClick={() => setSideTab('chat')}>보이드와 대화</button>
+          <button role="tab" aria-selected={sideTab === 'chat'} onClick={() => setSideTab('chat')}>보이드와 대화{aiOn && <em className="repair-ai-badge" title="Gemini가 프롬프트 문서대로 답하고 있어요">AI</em>}</button>
           <button role="tab" aria-selected={sideTab === 'notes'} onClick={() => setSideTab('notes')}>정비 수첩 <span>{noteCount}/{item.clueList.length}</span></button>
         </div>
         {sideTab === 'chat' && (
@@ -366,7 +365,7 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
                 return <div className="repair-chat-turn" key={index}>
                   {input && <p className="repair-chat-bubble repair-chat-player"><b>나</b>{input}</p>}
                   <div className="repair-chat-bubble">
-                    <p>{reply?.text ?? '생각 중…'}</p>
+                    <p>{reply?.text ?? '보이드가 생각 중…'}</p>
                   </div>
                 </div>
               })}

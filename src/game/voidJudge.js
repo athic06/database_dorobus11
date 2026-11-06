@@ -26,11 +26,11 @@ function wrongReply(item, text, known) {
 }
 
 // 퍼레이드: 네 문제를 따로 판정한다. 이미 설명한 문제(solvedBefore)는 다시 요구하지 않는다
-function judgeParade(item, text, known, solvedBefore = []) {
+function judgeParade(item, text, known, solvedBefore = [], modelExplained = []) {
   const solved = new Set(solvedBefore)
   const unproven = []
   for (const problem of item.problems) {
-    if (solved.has(problem.id) || !all(problem.correct, text)) continue
+    if (solved.has(problem.id) || !(all(problem.correct, text) || modelExplained.includes(problem.id))) continue
     if (problem.needs.some(id => known.includes(id))) solved.add(problem.id)
     else unproven.push(problem)
   }
@@ -62,15 +62,20 @@ export function judgeLocally(item, rawText, known, solvedBefore) {
   return { verdict: 'unclear', text: '음, 무엇이 무엇 때문에 그렇게 됐는지 한 문장으로 다시 적어 볼래? 수첩에 모은 관찰을 이어 보면 좋아.' }
 }
 
-// Gemini 판정(correct, partial, wrong, unclear)을 받아도 근거 확인과 대사는 로컬 규칙을 따른다
-export function judgeWithModel(item, text, known, modelVerdict, solvedBefore) {
+// Gemini 판정을 받으면: 의미 판단은 Gemini를 따르되, 근거 단서 확인(needs)과 작업대 전환 대사는 게임 규칙을 따른다.
+// model = { verdict, reply, explained } 또는 null(키 없음, 오프라인 → 로컬 규칙만)
+export function judgeWithModel(item, text, known, model, solvedBefore) {
+  if (item.problems) {
+    return judgeParade(item, text.replace(/\s+/g, ' ').trim(), known, solvedBefore, model?.explained ?? [])
+  }
   const local = judgeLocally(item, text, known, solvedBefore)
-  if (item.problems || !modelVerdict || modelVerdict === local.verdict) return local
-  if (modelVerdict === 'correct' && (local.verdict === 'partial' || local.verdict === 'unclear')) {
+  if (!model) return local
+  const correct = model.verdict === 'correct' || (local.verdict === 'correct' && model.verdict !== 'wrong')
+  if (correct) {
     const missing = missingEvidence(item, known)
     if (missing) return { verdict: 'needs', text: `그럴 수도 있겠다! 그런데 아직 직접 확인하지 않았어. ${clueHint(item, missing)}` }
     return { verdict: 'correct', text: item.lines.correct }
   }
-  if (modelVerdict === 'partial' && local.verdict === 'unclear') return { verdict: 'partial', text: item.judge.followUp }
-  return local
+  const verdict = local.verdict === 'needs' ? 'partial' : model.verdict
+  return { verdict, text: model.reply || local.text }
 }
