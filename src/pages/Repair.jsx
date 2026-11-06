@@ -7,7 +7,9 @@ import './repair.css'
 
 const ART = `${import.meta.env.BASE_URL}repair/openmoji/`
 const CATEGORY = ['관찰', '점검', '기록']
-const STEPS = ['현장 조사', '부품 수리', '복구 완료']
+const STEPS = ['살펴보기', '가설 시험', '복구 완료']
+const MIN_OBSERVATIONS = 2 // 가설을 세우기 전에 적어도 이만큼은 직접 살펴본다
+const MIN_HYPOTHESIS = 8 // 가설은 한 문장 이상
 const emptyRecords = Object.freeze({})
 const image = (id) => `${ART}${id}.svg`
 const geminiDemo = import.meta.env.DEV && import.meta.env.MODE === 'repair-demo'
@@ -29,12 +31,18 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
   })
   const [category, setCategory] = useState('관찰')
   const [sideTab, setSideTab] = useState('chat') // 오른쪽 창: 대화 | 수첩
-  const [guessing, setGuessing] = useState(false) // 원인 고르기 창
+  const [guessing, setGuessing] = useState(false) // 가설 세우기 창
   const [known, setKnown] = useState(investigation.known ?? [])
   const [fact, setFact] = useState(() => investigation.diagnosed
     ? '부품을 조정하고 두 조건에서 시험해 보자.'
     : fieldPrompts[item.id])
-  const [hypothesis, setHypothesis] = useState(null)
+  // 아이가 직접 적는 것들: 관찰마다 든 생각, 가설(문장)과 그 근거로 고른 관찰
+  const [thoughts, setThoughts] = useState(investigation.thoughts ?? {})
+  const [draft, setDraft] = useState(investigation.hypothesis?.text ?? '')
+  const [evidence, setEvidence] = useState(investigation.hypothesis?.evidence ?? [])
+  const [myHypothesis, setMyHypothesis] = useState(investigation.hypothesis ?? null)
+  const [tries, setTries] = useState(investigation.tries ?? 0) // 가설을 세운 횟수
+  const [hintLevel, setHintLevel] = useState(0) // ‘막혔어’를 누를 때마다 도움이 조금씩 구체적으로
   const [question, setQuestion] = useState('')
   const [chat, setChat] = useState([])
   const [asking, setAsking] = useState(false)
@@ -52,8 +60,7 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
   const chatLogRef = useRef(null)
   const facts = Object.fromEntries(item.clueList.map(clue => [clue.id, clue.fact]))
   const noteCount = known.length
-  const evidenceCount = item.required.filter(id => known.includes(id)).length
-  const evidenceReady = evidenceCount === item.required.length
+  const canHypothesize = known.length >= MIN_OBSERVATIONS
   const inWorld = surface === 'world'
   const working = phase === 'field' || phase === 'bench'
   const activeStep = ['field', 'bench', 'complete'].indexOf(phase)
@@ -98,14 +105,14 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
       record(clue)
     }
   }
-  const diagnose = () => {
-    if (hypothesis === null) return
-    if (hypothesis !== item.answer) {
-      setFact(item.disprove[hypothesis] || '그 생각을 확인하려면 어떤 점검이 필요할까?')
+  const submitHypothesis = () => {
+    const text = draft.trim()
+    if (text.length < MIN_HYPOTHESIS) {
+      setFact('조금 더 자세히 적어 볼래? 무엇이 왜 그렇게 됐는지 한 문장으로.')
       return
     }
-    if (!evidenceReady) {
-      setFact('가능성은 있어. 실제로 관찰하거나 측정한 증거를 더 모아 보자.')
+    if (!evidence.length) {
+      setFact('어떤 관찰 때문에 그렇게 생각했는지 하나 이상 골라 줘.')
       return
     }
     pendingQuestion.current?.abort()
@@ -113,16 +120,49 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
     setAsking(false)
     setChat(previous => previous.filter(message => message.reply))
     setTrial(null)
-    save({ diagnosed: true })
+    const next = { text, evidence }
+    setMyHypothesis(next)
+    setTries(tries + 1)
+    save({ diagnosed: true, hypothesis: next, tries: tries + 1 })
     setGuessing(false)
+    setHintLevel(0)
     setPhase('bench')
-    setFact('원인을 찾았어. 부품을 조정하고 두 조건에서 시험해 보자.')
+    setFact('네 가설을 시험해 보자. 가설이 맞다면 어떤 부품을 어떻게 바꿔야 할까? 바꾸기 전에 결과를 먼저 예상해 봐.')
+  }
+  // 시험이 생각대로 안 되면 다시 현장으로 돌아가 관찰하고 가설을 고칠 수 있다
+  const rethink = () => {
+    if (running) return
+    setTrial(null)
+    save({ diagnosed: false })
+    setPhase('field')
+    setHintLevel(0)
+    setFact('다시 살펴보자. 아직 안 해 본 조사가 있을까? 새로 알게 된 걸로 가설을 고쳐 봐.')
+  }
+  const writeThought = (id, value) => setThoughts(previous => ({ ...previous, [id]: value }))
+  const keepThoughts = () => save({ thoughts })
+  // ‘막혔어’: 처음엔 생각을 정리하게 묻고, 다시 누르면 조사 방향, 그다음에야 구체적인 도움
+  const stuck = () => {
+    const level = hintLevel
+    setHintLevel(Math.min(level + 1, 2))
+    let text
+    if (phase === 'field') {
+      const missing = item.clueList.find(clue => item.required.includes(clue.id) && !known.includes(clue.id))
+      if (level === 0) text = '지금까지 본 것 중에 평소와 다른 점은 뭐였어? 언제, 어디서 문제가 생기는지 수첩에 먼저 정리해 보자.'
+      else if (level === 1) text = missing ? `‘${missing.type}’ 쪽 조사로 새로 알 수 있는 게 있을지도 몰라. 어떤 걸 확인해 볼래?` : '관찰은 충분히 모은 것 같아. 수첩을 보면서 네 생각으로 가설을 세워 봐.'
+      else text = missing ? item.hints[Math.min(item.required.indexOf(missing.id), item.hints.length - 1)] ?? item.hints.at(-1) : '수첩에 적은 관찰들 사이에 공통점이 있는지 찾아봐.'
+    } else {
+      const firstControl = Object.values(item.controls)[0]
+      if (level === 0) text = '네 가설이 맞다면 어떤 부품을 어떻게 바꿔야 할까? 결과를 먼저 예상하고 시험해 봐.'
+      else if (level === 1) text = '한 번에 한 가지만 바꾸고 시험하면 무엇이 효과가 있는지 알 수 있어.'
+      else text = `‘${firstControl.label}’을 바꾸면 결과가 어떻게 달라지는지 비교해 봐.`
+    }
+    setChat(previous => [...previous.slice(-3), { input: '막혔어', reply: { text } }])
   }
   const test = (index) => {
     const ok = trialResult(item, settings, index)
     animate(ok, () => {
       if (!ok) {
-        setFact(item.fail)
+        setFact(`${item.fail} 네 가설로 이 결과를 설명할 수 있어? 설정을 바꿔 보거나 가설을 다시 세워 봐.`)
         return
       }
       const next = [...new Set([...verified, index])]
@@ -158,13 +198,13 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
         const current = Object.entries(item.controls).map(([id, spec]) => `${spec.label}은 ‘${spec.options[settings[id]]}’`)
         reply = { text: `작업대에서 지금 고른 값이야. ${current.join(', ')}.` }
       }
-      else if (trial && !trial.ok) reply = { text: item.fail }
+      else if (trial && !trial.ok) reply = { text: item.fail + ' 네 가설과 어떻게 달라?' }
       else if (quick || /시험|다음|힌트|뭐부터|어디부터/u.test(input)) {
         reply = { text: nextTest
           ? `‘${nextTest}’부터 해 보자. 부품을 조정한 뒤 실제로 어떻게 움직이는지 확인할 수 있어.`
           : '모든 시험을 통과했어.' }
-      } else if (reply.suggestedClue) {
-        reply = { text: '수첩에서 확인한 단서를 보고, 부품을 바꾼 뒤 두 조건에서 시험해 보자.' }
+      } else {
+        reply = { text: '네 가설에 따르면 어떤 결과가 나와야 해? 예상해 보고 시험해서 확인해 봐.' }
       }
     }
     if (geminiDemo && phase === 'field' && !quick && !/힌트|어디부터|다음에|뭐부터/u.test(input)) {
@@ -230,20 +270,16 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
             <div className="repair-chat-log" ref={chatLogRef} role="log" aria-label="보이드 대화 기록">
               <p className="repair-chat-bubble">{phase === 'bench' ? '작업대를 열었어. 어떤 부품이나 시험이 궁금해?' : phase === 'complete' ? item.resolution : item.request}</p>
               {chat.map(({ input, reply }, index) => {
-                const action = item.clueList.find(clue => clue.id === reply?.suggestedClue)
                 return <div className="repair-chat-turn" key={index}>
                   <p className="repair-chat-bubble repair-chat-player"><b>나</b>{input}</p>
                   <div className="repair-chat-bubble">
                     <p>{reply?.text ?? '생각 중…'}</p>
-                    {phase === 'field' && action && <button className="repair-text-button" onClick={() => setCategory(action.type)}>{action.type} 버튼 보기</button>}
                   </div>
                 </div>
               })}
             </div>
             {working && <>
-              <button className="repair-chat-prompt" type="button" disabled={asking} onClick={() => {
-                void ask(phase === 'field' ? '어디부터 볼까?' : '다음 시험은 뭐야?', true)
-              }}>{phase === 'field' ? '어디부터 볼까?' : '다음 시험은 뭐야?'}</button>
+              <button className="repair-chat-prompt" type="button" disabled={asking} onClick={stuck}>막혔어, 도와줘</button>
               <form className="repair-chat" onSubmit={event => {
                 event.preventDefault()
                 void ask(question)
@@ -256,7 +292,22 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
         )}
         {sideTab === 'notes' && (
           <section className="repair-notes" aria-label="정비 수첩">
-            {known.length ? <ul>{known.map(id => <li key={id}>{facts[id]}</li>)}</ul> : <p>아직 기록이 없어요. 현장에서 확인한 내용을 여기 적어요.</p>}
+            {myHypothesis && <div className="repair-my-hypothesis"><b>내 가설</b><p>{myHypothesis.text}</p></div>}
+            {known.length ? <ul className="repair-note-list">{known.map(id => (
+              <li key={id}>
+                <p className="repair-note-fact">{facts[id]}</p>
+                <textarea
+                  className="repair-note-thought"
+                  aria-label="이 관찰에 대한 내 생각"
+                  placeholder="이걸 보고 어떤 생각이 들었어? (예: 왜 그럴까? 다른 곳과 뭐가 달라?)"
+                  value={thoughts[id] ?? ''}
+                  maxLength={200}
+                  rows={2}
+                  onChange={event => writeThought(id, event.target.value)}
+                  onBlur={keepThoughts}
+                />
+              </li>
+            ))}</ul> : <p>아직 기록이 없어요. 현장에서 직접 살펴본 것을 여기 모아요.</p>}
             {item.id === 'parade' && known.includes('notes') && <ul>{REPAIR_CASES.filter(candidate => records[candidate.id]).map(candidate => <li key={candidate.id}><b>{candidate.district}</b> {candidate.resolution}</li>)}</ul>}
           </section>
         )}
@@ -265,7 +316,11 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
       {working && (
         <div className="repair-hud-bottom">
           {/* 보이드 대사: 게임 대화창처럼 버튼 바로 위에 띄운다 */}
-          <div className="repair-hud-line" role="status">{portrait}<p><b>보이드</b>{fact}</p></div>
+          <div className="repair-hud-line" role="status">
+            {portrait}
+            <p><b>보이드</b>{fact}</p>
+            {phase === 'field' && inspected && <button className="repair-text-button" onClick={() => setSideTab('notes')}>수첩에 내 생각 적기</button>}
+          </div>
 
           {phase === 'field' && (
             <div className="repair-hud-actions">
@@ -280,12 +335,16 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
                     {clue.label}{known.includes(clue.id) ? ' ✓' : ''}
                   </button>
                 ))}
-                {evidenceReady && <button className="repair-action repair-action-go" disabled={running} onClick={() => setGuessing(true)}>원인 고르기 →</button>}
+                <button className="repair-action repair-action-go" disabled={running || !canHypothesize} onClick={() => setGuessing(true)}
+                  title={canHypothesize ? '' : `먼저 ${MIN_OBSERVATIONS}가지 이상 살펴봐요`}>내 가설 세우기 →</button>
               </div>
-              <span className="repair-evidence">핵심 단서 {evidenceCount} / {item.required.length}</span>
+              <span className="repair-evidence">살펴본 것 {known.length}개</span>
             </div>
           )}
 
+          {phase === 'bench' && myHypothesis && (
+            <div className="repair-hud-hypothesis"><b>내 가설</b><span>{myHypothesis.text}</span><button className="repair-text-button" disabled={running} onClick={rethink}>다시 조사하고 고치기</button></div>
+          )}
           {phase === 'bench' && (
             <div className="repair-hud-actions">
               <div className="repair-bench-row">
@@ -321,14 +380,23 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
       {phase === 'field' && guessing && (
         <div className="repair-overlay" onClick={event => event.target === event.currentTarget && setGuessing(false)}>
           <fieldset className="repair-hypotheses repair-overlay-card" ref={evidenceReadyRef}>
-            <legend>어디서 문제가 생겼을까?</legend>
-            <p className="repair-overlay-line"><b>보이드</b>{fact}</p>
-            {item.hypotheses.map((label, index) => (
-              <label key={label}><input type="radio" name="repair-hypothesis" checked={hypothesis === index} onChange={() => setHypothesis(index)} />{label}</label>
-            ))}
+            <legend>왜 이런 일이 생겼을까?</legend>
+            <p className="repair-overlay-line"><b>보이드</b>정답을 맞히는 게 아니라 네 생각을 적는 거야. 틀려도 괜찮아, 작업대에서 직접 시험해 보면 돼.</p>
+            <textarea className="repair-hypothesis-input" aria-label="내 가설" placeholder="예: ○○ 때문에 △△가 되어서 멈추는 것 같아."
+              value={draft} maxLength={200} rows={3} autoFocus onChange={event => setDraft(event.target.value)} />
+            <p className="repair-overlay-sub">어떤 관찰 때문에 그렇게 생각했어?</p>
+            <div className="repair-evidence-pick">
+              {known.map(id => (
+                <label key={id}>
+                  <input type="checkbox" checked={evidence.includes(id)} onChange={() => setEvidence(previous => previous.includes(id) ? previous.filter(x => x !== id) : [...previous, id])} />
+                  <span>{facts[id]}{thoughts[id] ? <em> · 내 생각: {thoughts[id]}</em> : null}</span>
+                </label>
+              ))}
+            </div>
+            <p className="repair-overlay-line repair-overlay-status" role="status">{fact}</p>
             <div className="repair-overlay-buttons">
               <button className="repair-text-button" onClick={() => setGuessing(false)}>더 조사하기</button>
-              <button className="repair-primary" disabled={running || hypothesis === null} onClick={diagnose}>원인 확인하고 수리하기</button>
+              <button className="repair-primary" disabled={running} onClick={submitHypothesis}>작업대에서 시험해 보기</button>
             </div>
           </fieldset>
         </div>
@@ -339,7 +407,12 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
           <div className="repair-success repair-overlay-card">
             <img src={image(item.asset)} alt="" />
             <h2>{item.id === 'parade' ? '축제가 열렸어요!' : '시설이 다시 움직여요!'}</h2>
-            <p>{item.resolution}</p>
+            {myHypothesis && <div className="repair-compare">
+              <div><b>내가 세운 가설</b><p>{myHypothesis.text}</p></div>
+              <div><b>실제로 일어난 일</b><p>{item.resolution}</p></div>
+            </div>}
+            {!myHypothesis && <p>{item.resolution}</p>}
+            {tries > 1 && <p className="repair-tries">가설을 {tries}번 고쳐 세우며 찾아냈어요!</p>}
             {item.part && <p>정비 인증 스탬프 · 해금 부품 <b>{item.part}</b></p>}
             {item.id === 'parade' && <p>이제 마이룸 컴퓨터에서 정식 정비사 의뢰를 받을 수 있어요.</p>}
             <button className="repair-primary" onClick={onBack}>{inWorld ? '도로랜드로 돌아가기' : '작업 목록으로'}</button>

@@ -21,11 +21,10 @@ export function voidReply(input, repairCase, known, facts) {
     return { text: newest ? `수첩에 마지막으로 적은 내용이야. ${facts[newest]}` : '수첩이 아직 비어 있어. 현장에서 뭐 하나 살펴보자.' }
   }
   if (/힌트|어디부터|다음에|뭐부터/u.test(input)) {
-    let id = repairCase.required.find(candidate => !known.includes(candidate))
-    if (id === 'repeat' && !known.includes('run')) id = 'run'
-    return id
-      ? replyFromIntent({ intent: 'suggest', clueId: id }, repairCase, known, facts)
-      : { text: '핵심 단서는 다 모았어. 수첩을 보고 고장 원인을 골라 봐.' }
+    return { text: '먼저 네 생각을 들려줘. 지금까지 본 것 중에 이상했던 건 뭐야? 정말 막혔으면 ‘막혔어, 도와줘’를 눌러.' }
+  }
+  if (/왜|이유|원인/u.test(input)) {
+    return { text: '좋은 질문이야! 네 생각엔 왜 그런 것 같아? 수첩에 적고, 그걸 확인할 조사를 골라 봐.' }
   }
   const topic = TOPICS.find(([pattern]) => pattern.test(input))
   const match = topic?.[1].map(id => repairCase.clueList.find(c => c.id === id)).find(Boolean)
@@ -34,16 +33,14 @@ export function voidReply(input, repairCase, known, facts) {
 }
 
 export function replyFromIntent(result, repairCase, known, facts) {
-  if (result?.intent === 'hint') return { text: '어디부터 볼지 막혔으면 ‘어디부터 볼까?’를 눌러 봐.' }
+  if (result?.intent === 'hint') return { text: '답을 알려 주진 않을게. 대신 같이 생각해 보자. 막혔으면 ‘막혔어, 도와줘’를 눌러.' }
   if (result?.intent === 'clarify') return { text: '어떤 시설 상태나 조사 방법이 궁금한지 조금 더 말해 줄래?' }
   const clue = repairCase.clueList.find(candidate => candidate.id === result?.clueId)
   if (!clue) return null
   if (result.intent === 'observed' && known.includes(clue.id)) return { text: facts[clue.id] }
+  // 아직 안 본 것이면 어떤 버튼인지 말하지 않고, 어느 쪽 조사(관찰/점검/기록)인지만 귀띔한다
   if (result.intent === 'suggest') {
-    const action = clue.id === 'repeat' && !known.includes('run')
-      ? repairCase.clueList.find(candidate => candidate.id === 'run')
-      : clue
-    return { text: `‘${action.label}’로 직접 확인해 보자.`, suggestedClue: action.id }
+    return { text: `그건 직접 확인해 봐야 알 수 있어. ‘${clue.type}’ 쪽에서 확인할 방법을 찾아볼래?` }
   }
   return null
 }

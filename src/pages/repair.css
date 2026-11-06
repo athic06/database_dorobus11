@@ -383,3 +383,37 @@
 /* 선택 창 제목을 테두리 선 위가 아니라 카드 안쪽에 */
 .repair-overlay-card > legend { float: left; width: 100%; margin: 0 0 .5rem; padding: 0; font-size: 1.15rem; font-weight: 800; }
 .repair-overlay-card > legend + * { clear: both; }
+
+/* ---------- 아이가 직접 적는 칸: 수첩의 ‘내 생각’, 가설 쓰기, 결과 비교 ---------- */
+.repair-note-list { display: flex; flex-direction: column; gap: .7rem; margin: 0; padding: 0; list-style: none; }
+.repair-note-list li { padding: .6rem; border: 1px solid var(--rule); border-radius: 10px; background: #fff; }
+.repair-note-fact { margin: 0 0 .4rem; line-height: 1.45; }
+.repair-note-thought, .repair-hypothesis-input {
+  width: 100%; box-sizing: border-box; resize: vertical; padding: .5rem .6rem; border: 1px dashed #b59a7c; border-radius: 8px;
+  background: #fffdf6; color: var(--ink); font: inherit; line-height: 1.45;
+}
+.repair-note-thought:focus, .repair-hypothesis-input:focus { border-style: solid; outline: 2px solid #8e3c3055; }
+.repair-my-hypothesis { margin-bottom: .7rem; padding: .6rem .7rem; border-left: 4px solid var(--green); border-radius: 6px; background: #eef4ec; }
+.repair-my-hypothesis b { font-size: .75rem; color: var(--green); }
+.repair-my-hypothesis p { margin: .2rem 0 0; }
+.repair-hypothesis-input { font-size: 1rem; }
+.repair-overlay-sub { margin: .7rem 0 .35rem; font-weight: 800; }
+.repair-evidence-pick { display: flex; flex-direction: column; gap: .35rem; max-height: 30vh; overflow: auto; }
+.repair-evidence-pick label { display: flex; gap: .5rem; align-items: flex-start; padding: .4rem .5rem; border: 1px solid var(--rule); border-radius: 8px; background: #fff; font-size: .85rem; line-height: 1.4; cursor: pointer; }
+.repair-evidence-pick em { color: var(--green); font-style: normal; }
+.repair-overlay-status { margin-top: .6rem; font-size: .85rem; }
+.repair-hud-line .repair-text-button { flex: none; margin-left: auto; }
+.repair-hud-hypothesis {
+  display: flex; gap: .6rem; align-items: center; padding: .45rem .8rem; border: 1px solid #9fb79f; border-radius: 12px;
+  background: #eef4ecf0; backdrop-filter: blur(8px);
+}
+.repair-hud-hypothesis b { flex: none; color: var(--green); font-size: .78rem; }
+.repair-hud-hypothesis span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.repair-compare { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin: .6rem 0; text-align: left; }
+.repair-compare > div { padding: .6rem .7rem; border: 1px solid var(--rule); border-radius: 10px; background: #fff; }
+.repair-compare b { font-size: .75rem; color: var(--green); }
+.repair-compare p { margin: .25rem 0 0; line-height: 1.45; }
+.repair-tries { color: var(--accent); font-weight: 800; }
+.repair-overlay-card { max-height: calc(100% - 2rem); overflow: auto; }
+.repair-hypotheses.repair-overlay-card { width: min(620px, calc(100% - 2rem)); }
+.repair-hud-title .repair-steps li { white-space: nowrap; }
