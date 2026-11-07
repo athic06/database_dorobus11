@@ -89,7 +89,7 @@ export async function judgeHypothesis({ apiKey, model = DEFAULT_MODEL, input, fe
 - 지금 플레이어가 고장 원인(가설)을 말했습니다. 문서의 "정답 판정" 기준으로 verdict를 고르세요: correct(핵심 인과관계를 같은 뜻으로 설명), partial(증상이나 일부만 설명), wrong(다른 원인), unclear(뜻을 알 수 없음).
 - reply는 그 판정에 맞는 보이드의 말입니다. partial이면 문서의 예시처럼 되묻고, wrong이면 확인한 단서로 반박하거나 확인할 방법을 제안하세요. 정답을 직접 말하지 마세요.${problems.length ? `
 - 이 사건은 네 문제를 따로 판정합니다. explained에는 가설이 원인을 제대로 설명한 문제 id만 넣으세요: hill(오르막 차량), power(무대 조명), balance(풍선 장식), route(막힌 경로).` : ''}`,
-    thinking: 'LOW', timeout: 20000,
+    thinking: 'LOW', timeout: 12000,
     payload: { observed, alreadyExplained: Array.isArray(input.solved) ? input.solved : [], hypothesis: input.hypothesis.trim() },
     schema: {
       type: 'object',

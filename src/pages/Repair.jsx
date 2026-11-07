@@ -195,7 +195,7 @@ function CasePlay({ item, records, investigation, surface, save, onComplete, onB
     if (judging) return
     setJudging(true)
     // Gemini(개발 서버, 프롬프트 문서 기준)가 의미로 판정. 키가 없거나 오프라인이면 로컬 규칙만 쓴다
-    const model = await askGemini('/api/void-judge', { caseId: item.id, known, hypothesis: text, solved: solvedProblems }, 22000)
+    const model = await askGemini('/api/void-judge', { caseId: item.id, known, hypothesis: text, solved: solvedProblems }, 14000)
     const result = judgeWithModel(item, text, known, model, solvedProblems)
     setJudging(false)
     const nextTries = tries + 1
