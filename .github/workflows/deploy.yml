@@ -28,6 +28,15 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+      # 미니PC의 보이드 서버 코드와 프롬프트. 미니PC 자동 배포가 공개 폴더(dist) 밖 ~/dorobus/void로 옮긴다
+      - name: 보이드 서버 묶기
+        run: |
+          mkdir -p dist/_void/server dist/_void/src/game
+          cp server/void-server.mjs server/void-demo.mjs dist/_void/server/
+          cp -r server/prompts dist/_void/server/
+          cp src/game/repairCases.js dist/_void/src/game/
+          echo '{"type":"module"}' > dist/_void/package.json
+
       - name: dist를 deploy 브랜치에 올리기
         env:
           MSG: ${{ github.event.head_commit.message || 'manual run' }}

@@ -20,6 +20,8 @@ from pathlib import Path
 
 CONFIG = Path.home() / ".config" / "dorobus-deploy"
 SITE = Path.home() / "dorobus" / "dist"
+# 빌드에 함께 들어오는 보이드 서버 코드와 프롬프트(정답이 들어 있음). 공개 폴더(dist) 밖으로 옮긴다.
+VOID = Path.home() / "dorobus" / "void"
 
 
 def api(url, token, raw=False):
@@ -65,6 +67,19 @@ def main():
     if not (new / "index.html").exists():
         print("index.html이 없어서 반영하지 않았어요", file=sys.stderr)
         return 1
+
+    # 보이드 서버 코드(_void)는 공개 폴더에 두지 않고 ~/dorobus/void로 옮긴다
+    bundle = new / "_void"
+    if bundle.exists():
+        void_new = VOID.with_name("void.new")
+        void_old = VOID.with_name("void.old")
+        shutil.rmtree(void_new, ignore_errors=True)
+        shutil.move(str(bundle), str(void_new))
+        shutil.rmtree(void_old, ignore_errors=True)
+        if VOID.exists():
+            VOID.rename(void_old)
+        void_new.rename(VOID)
+        shutil.rmtree(void_old, ignore_errors=True)
 
     # 새 폴더로 바꿔 끼우고 서비스를 다시 띄운다
     shutil.rmtree(old, ignore_errors=True)

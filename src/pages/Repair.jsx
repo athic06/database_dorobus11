@@ -16,8 +16,9 @@ const MIN_HYPOTHESIS = 8 // 가설은 한 문장 이상
 const COUNTDOWN = 10 * 60 // 퍼레이드 개막 카운트다운(연출용, 끝나도 실패 없음)
 const emptyRecords = Object.freeze({})
 const image = (id) => `${ART}${id}.svg`
-// 개발 서버에서는 Gemini 보이드(server/void-demo.mjs, 프롬프트: server/prompts)를 쓴다. 빌드된 정적 사이트는 게임 규칙만으로 답한다
-const aiVoice = import.meta.env.DEV
+// Gemini 보이드: 개발 서버(vite 플러그인)와 미니PC(server/void-server.mjs)가 /api/void-* 를 제공한다.
+// API가 없는 곳(정적 호스팅)이나 실패하면 게임 규칙만으로 답한다
+const aiVoice = true
 const ANIMATED = ['run', 'repeat', 'kids', 'ledoff']
 const fieldPrompts = {
   food: '어떤 재료부터 떨어지는지 같이 보자.',
