@@ -11,7 +11,12 @@ const MAX_REVERSE = 6
 const ACCEL = 14
 const BRAKE = 24
 const DRAG = 5
-const STEER = 2.1
+// 핸들(자전거 모델): 앞바퀴 각도를 서서히 꺾고, 차는 그 각도와 속도로 돈다. 후진하면 실제 차처럼 뒤가 핸들 쪽으로 간다
+const WHEELBASE = 2.1 // 앞뒤 바퀴 사이 거리
+const MAX_STEER = 0.62 // 천천히 갈 때 최대 앞바퀴 각도(라디안)
+const MIN_STEER = 0.2 // 최고 속도에서 최대 앞바퀴 각도: 빠를수록 덜 꺾여 안정적
+const STEER_IN = 2.4 // 꺾는 속도(라디안/초)
+const STEER_OUT = 3.8 // 손을 떼면 가운데로 돌아오는 속도
 const CAR_RADIUS = 1.7
 const NO_KEYS = { forward: false, back: false, left: false, right: false }
 
@@ -26,6 +31,7 @@ export default function Driver({ posRef, headingRef, keys, view, colliders, half
   const car = useRef()
   const wheels = [useRef(), useRef(), useRef(), useRef()]
   const speed = useRef(0)
+  const steerAngle = useRef(0) // 지금 앞바퀴 각도(+는 왼쪽)
   const { camera, scene } = useThree()
   const sun = useRef()
 
@@ -59,11 +65,15 @@ export default function Driver({ posRef, headingRef, keys, view, colliders, half
     else v -= Math.sign(v) * Math.min(Math.abs(v), DRAG * dt)
     v = THREE.MathUtils.clamp(v, -MAX_REVERSE, top)
 
-    // A는 항상 차 앞이 왼쪽, D는 오른쪽으로 돈다. 후진이나 브레이크 중에도 뒤집히지 않게 속도 방향은 곱하지 않는다(아이들 기준 조작)
+    // 핸들: A/D를 누르는 동안 앞바퀴가 서서히 꺾이고, 떼면 가운데로 돌아온다. 반대쪽으로 바꾸면 더 빨리 넘어간다
     const steer = (k.left ? 1 : 0) - (k.right ? 1 : 0)
-    if (steer && Math.abs(v) > 0.2) {
-      headingRef.current += steer * STEER * dt * Math.min(1, Math.abs(v) / 4)
-    }
+    const limit = THREE.MathUtils.lerp(MAX_STEER, MIN_STEER, Math.min(1, Math.abs(v) / top))
+    const target = steer * limit
+    const flipping = steer !== 0 && steerAngle.current !== 0 && Math.sign(target) !== Math.sign(steerAngle.current)
+    const rate = steer ? (flipping ? STEER_OUT * 1.3 : STEER_IN) : STEER_OUT
+    steerAngle.current += THREE.MathUtils.clamp(target - steerAngle.current, -rate * dt, rate * dt)
+    // 차는 앞바퀴가 향한 쪽으로 돈다(속도에 비례). 후진하면 회전 방향이 반대가 되어 차 뒤가 핸들 쪽으로 간다
+    headingRef.current += (v / WHEELBASE) * Math.tan(steerAngle.current) * dt
     const h = headingRef.current
     const p = posRef.current
     p.x += Math.sin(h) * v * dt
@@ -90,9 +100,12 @@ export default function Driver({ posRef, headingRef, keys, view, colliders, half
     p.y = groundHeight(p.x,p.z)
     car.current.position.copy(p)
     car.current.rotation.y = h
-    car.current.rotation.z = THREE.MathUtils.lerp(car.current.rotation.z, -steer * Math.min(1, Math.abs(v) / top) * 0.06, 0.1)
+    // 도는 동안 바깥쪽으로 살짝 기운다(원심력 느낌)
+    const lateral = (v * v * Math.tan(steerAngle.current)) / (top * top)
+    car.current.rotation.z = THREE.MathUtils.lerp(car.current.rotation.z, -lateral * 0.25, 0.1)
     wheels.forEach((w) => w.current && (w.current.rotation.x += (v * dt) / 0.55))
-
+    // 앞바퀴(0, 1번)를 핸들 각도만큼 꺾어 보여 준다
+    for (const w of [wheels[0], wheels[1]]) if (w.current?.parent) w.current.parent.rotation.y = steerAngle.current
     // 달리는 동안에는 둘러보던 시점이 천천히 차 뒤쪽으로 돌아온다
     // 운전 키를 누르면 돌려 둔 시점이 빠르게 차 뒤로 돌아온다(차 앞에서 보면 좌우가 거울처럼 뒤집혀 보이므로)
     const vw = view.current
