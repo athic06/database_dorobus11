@@ -60,22 +60,17 @@ async function callGemini({ apiKey, model, system, payload, schema, thinking = '
 
 const clean = (text) => typeof text === 'string' ? text.replace(/\s+/g, ' ').trim().slice(0, 320) : ''
 
-// 보이드와 대화: 질문에 대한 보이드의 대답
-export async function voidChat({ apiKey, model = DEFAULT_MODEL, input, fetcher }) {
+// 대화 출력은 서버가 확인된 조사 동작만으로 작성한다. 비공개 정답을 읽은 모델의
+// 자유 서술을 사용자에게 전달하면 반복 질문으로 정답이 유출될 수 있다.
+export async function voidChat({ input }) {
   const item = CASES.find(candidate => candidate.id === input?.caseId)
   if (!item || typeof input.question !== 'string' || !input.question.trim() || input.question.length > 300) return null
-  const { observed, actions } = state(item, input)
-  const history = Array.isArray(input.history)
-    ? input.history.slice(-4).map(turn => ({ player: String(turn?.player ?? '').slice(0, 300), void: String(turn?.void ?? '').slice(0, 320) }))
-    : []
-  const result = await callGemini({
-    apiKey, model, fetcher,
-    system: `${PROMPTS[item.id]}\n${GAME_RULES}\n- 지금 단계: ${input.phase === 'bench' ? '2D 작업대에서 부품을 조정하고 시험하는 중. 정답 설정값은 알려주지 말고, 가설에 따라 무엇을 바꿔 시험할지 생각하게 하세요.' : '현장 조사 중.'}`,
-    payload: { observed, actions, history, question: input.question.trim() },
-    schema: { type: 'object', properties: { reply: { type: 'string' } }, required: ['reply'] },
-  })
-  const reply = clean(result?.reply)
-  return reply ? { reply } : null
+  const { actions } = state(item, input)
+  const next = actions[0]
+  if (input.phase === 'bench') return { reply: '작업대에서 한 가지를 바꿔 보고 시험해 보자. 결과가 어떻게 달라지는지 살펴봐!' }
+  if (!next) return { reply: '모은 단서를 비교해서 원인을 네 말로 설명해 볼래? 가설을 말하면 함께 확인해 보자.' }
+  const target = next.npc ? `질문 탭에서 ${next.npc}에게 “${next.action}”을 물어보자.` : `${next.tab} 탭에서 “${next.action}”을 해 보자.`
+  return { reply: `좋은 질문이야! ${target} 결과를 보고 다시 생각해 보자.` }
 }
 
 // 가설 판정: 문서의 정답 판정 기준(정답, 부분 정답, 오답)에 따라 의미로 판단하고, 보이드의 대답도 함께 만든다
@@ -103,7 +98,14 @@ export async function judgeHypothesis({ apiKey, model = DEFAULT_MODEL, input, fe
     },
   })
   if (!result || !['correct', 'partial', 'wrong', 'unclear'].includes(result.verdict)) return null
-  return { verdict: result.verdict, reply: clean(result.reply), explained: (result.explained ?? []).filter(id => problems.includes(id)) }
+  // 모델은 분류만 맡는다. reply에는 정답 문장이 섞일 수 있으므로 버린다.
+  const replies = {
+    correct: '네가 설명한 원인을 확인했어! 이제 게임에서 다음 단계를 살펴보자.',
+    partial: '좋은 발견이야! 확인한 단서들을 더 연결해서 원인을 설명해 볼래?',
+    wrong: '그럴 수도 있겠네. 확인한 단서와 맞는지 다시 살펴보자.',
+    unclear: '어떤 원인이라고 생각하는지 조금 더 자세히 말해 줄래?',
+  }
+  return { verdict: result.verdict, reply: replies[result.verdict], explained: (result.explained ?? []).filter(id => problems.includes(id)) }
 }
 
 export function localVoidDemo(apiKey, model) {
