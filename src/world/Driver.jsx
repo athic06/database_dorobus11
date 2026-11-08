@@ -59,9 +59,10 @@ export default function Driver({ posRef, headingRef, keys, view, colliders, half
     else v -= Math.sign(v) * Math.min(Math.abs(v), DRAG * dt)
     v = THREE.MathUtils.clamp(v, -MAX_REVERSE, top)
 
+    // A는 항상 차 앞이 왼쪽, D는 오른쪽으로 돈다. 후진이나 브레이크 중에도 뒤집히지 않게 속도 방향은 곱하지 않는다(아이들 기준 조작)
     const steer = (k.left ? 1 : 0) - (k.right ? 1 : 0)
     if (steer && Math.abs(v) > 0.2) {
-      headingRef.current += steer * STEER * dt * Math.sign(v) * Math.min(1, Math.abs(v) / 4)
+      headingRef.current += steer * STEER * dt * Math.min(1, Math.abs(v) / 4)
     }
     const h = headingRef.current
     const p = posRef.current
@@ -93,8 +94,12 @@ export default function Driver({ posRef, headingRef, keys, view, colliders, half
     wheels.forEach((w) => w.current && (w.current.rotation.x += (v * dt) / 0.55))
 
     // 달리는 동안에는 둘러보던 시점이 천천히 차 뒤쪽으로 돌아온다
+    // 운전 키를 누르면 돌려 둔 시점이 빠르게 차 뒤로 돌아온다(차 앞에서 보면 좌우가 거울처럼 뒤집혀 보이므로)
     const vw = view.current
-    if (Math.abs(v) > 2) vw.yaw *= 1 - Math.min(1, dt * 1.2)
+    const driving = k.forward || k.back || k.left || k.right
+    vw.yaw = Math.atan2(Math.sin(vw.yaw), Math.cos(vw.yaw)) // 한 바퀴 넘게 돌려 둔 각도는 가까운 쪽으로 돌아오게
+    if (driving) vw.yaw *= 1 - Math.min(1, dt * 6)
+    else if (Math.abs(v) > 2) vw.yaw *= 1 - Math.min(1, dt * 1.2)
     const camView = { yaw: h + Math.PI + vw.yaw, pitch: vw.pitch, dist: vw.dist }
     camGoal.copy(p).add(viewOffset(camView, off))
     camGoal.y = Math.max(camGoal.y, groundHeight(camGoal.x,camGoal.z) + 1.4)

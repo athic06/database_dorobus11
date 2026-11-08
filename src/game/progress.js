@@ -1,9 +1,9 @@
 // 메인 스토리 진행 상태. 계정마다 따로 저장된다(store.jsx).
 export const INITIAL_PROGRESS = {
-  classDone: false, // 챕터 0 → 1: 첫 수업 수강
-  introSeen: false, // 챕터 1: 자일로에게 지도와 모바일 로봇을 받음
-  carCheckDone: false, // 챕터 1 미션 「자동차 출발 점검」 → 챕터 2 (동굴 해금)
-  licenseGot: false, // 챕터 1: 점검을 마치고 자동차 옆에서 운전면허증을 챙김 → 외출 가능
+  classDone: false, // 대시보드 첫 수업 수강 (스토리와 연결하지 않음)
+  introSeen: false, // 챕터 0 → 1: 마이룸에 처음 들어오면 자일로에게 지도와 모바일 로봇을 받음
+  carCheckDone: false, // 챕터 1 미션 「자동차 수리」(고장 수사대 방식, repairCases.js CAR_CASE) → 운전면허증, 챕터 2 (동굴 해금)
+  licenseGot: false, // 챕터 1: 자동차 수리를 마치면 받음 → 외출 가능
   licenseDate: '',
   caveIntroSeen: false,
   diaryFound: false, // 챕터 2: 일기장 발견
@@ -76,7 +76,7 @@ export const VOID_PARTS = [
 ]
 
 export function chapterOf(p) {
-  if (!p.classDone) return 0
+  if (!p.introSeen) return 0
   if (!p.carCheckDone) return 1
   if (!p.caveCleared) return 2
   if (!p.cubesFound) return 3
@@ -99,9 +99,8 @@ export const CHAPTER_TITLES = [
 export const rikoMissing = (p) => p.cubesFound && !p.rikoBack
 
 export function objectiveOf(p) {
-  if (!p.classDone) return '대시보드의 「오늘의 수업」에서 첫 수업을 들어요'
   if (!p.introSeen) return '마이룸으로 가서 자일로를 만나요'
-  if (!p.carCheckDone) return '모바일 로봇 자동차 앞에서 E를 눌러 출발 점검을 해요'
+  if (!p.carCheckDone) return '모바일 로봇 자동차 앞에서 E를 눌러 자동차를 고치고 운전면허증을 받아요'
   if (!hasLicense(p)) return '자동차 옆 받침대에 놓인 운전면허증을 챙겨요'
   if (!p.diaryFound) return '마이룸 문으로 나가 자동차로 북동쪽 산의 동굴까지 달려요. 네이티를 따라 동굴 안쪽을 살펴봐요'
   if (!p.caveCleared) return '동굴의 지도 표지판 앞에서 출구를 찾아요'
@@ -124,8 +123,7 @@ export function objectiveOf(p) {
 
 export function continuePath(p) {
   const c = chapterOf(p)
-  if (c === 0) return null
-  if (c === 1) return '/myroom'
+  if (c === 0 || c === 1) return '/myroom'
   if (c === 2 && p.diaryFound) return '/cave'
   if (c === 3 && p.plazaOpen && p.facilities.length < FACILITY_GOAL) return '/plaza'
   if (c === 4 && !p.rescueLessonDone) return null // 대시보드에서 수업 먼저

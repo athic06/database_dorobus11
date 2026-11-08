@@ -133,7 +133,7 @@ export default function Dashboard() {
         desc: '순서대로 명령을 쌓아 로봇을 움직여 봐요.',
         done: progress.classDone,
         flag: 'classDone',
-        notice: '첫 수업을 들었어요! 챕터 1이 열렸어요. 마이룸에서 자일로가 기다리고 있어요.',
+        notice: '첫 수업을 들었어요!',
       }
 
   return (

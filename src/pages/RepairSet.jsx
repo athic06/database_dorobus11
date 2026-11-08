@@ -60,6 +60,8 @@ export default function RepairSet({ id, dusk }) {
   switch (id) {
     case 'food':
       return <><Indoor /><Valance /></>
+    case 'car':
+      return <Indoor floor={84} />
     case 'delivery':
       return <Indoor floor={122} />
     case 'safari':

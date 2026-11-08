@@ -81,7 +81,7 @@ export default function DemoPanel() {
               <button className="btn-primary" disabled={!step} onClick={completeNow}>이 단계 바로 완료</button>
               {note && <small className="demo-note">{note}</small>}
             </div>
-            <button className="btn-ghost demo-restart" onClick={restart}>🔄 처음부터 다시 시작 (첫 수업 전)</button>
+            <button className="btn-ghost demo-restart" onClick={restart}>🔄 처음부터 다시 시작 (자동차 받기 전)</button>
             <small className="demo-sub">장면 바로 가기 (지금까지의 이야기를 보고 그 장면으로 이동해요)</small>
             <div className="demo-scenes">
               {SCENES.map((s) => (

@@ -39,7 +39,7 @@ function useCardTexture(name) {
     g.font = '24px sans-serif'
     g.fillStyle = '#4A5568'
     g.fillText('모바일 로봇 1종', 188, 176)
-    g.fillText('출발 점검 통과', 188, 214)
+    g.fillText('자동차 수리 통과', 188, 214)
     g.fillStyle = '#F5C451'
     g.beginPath()
     g.arc(440, 254, 34, 0, Math.PI * 2)

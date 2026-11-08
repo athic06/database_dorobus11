@@ -1,11 +1,11 @@
 import { readFileSync, existsSync } from 'node:fs'
-import { PARADE, REPAIR_CASES, WORKSHOP } from '../src/game/repairCases.js'
+import { CAR_CASE, PARADE, REPAIR_CASES, WORKSHOP } from '../src/game/repairCases.js'
 
 // 개발 서버 전용 Gemini 보이드. API 키는 서버에만 있고 브라우저로 나가지 않는다.
 // 사건마다 server/prompts/<사건 id>.md (Notion 「도로랜드_프롬프트」 원문)를 시스템 프롬프트로 쓴다.
 // 게임 규칙(단서 공개, 작업대 전환, 수리 성공)은 브라우저 쪽 코드가 정하고, Gemini는 보이드의 말과 의미 판정만 맡는다.
 
-const CASES = [...REPAIR_CASES, PARADE, WORKSHOP]
+const CASES = [...REPAIR_CASES, PARADE, WORKSHOP, CAR_CASE]
 export const DEFAULT_MODEL = 'gemini-3.1-flash-lite'
 
 const PROMPTS = Object.fromEntries(CASES.map(item => {

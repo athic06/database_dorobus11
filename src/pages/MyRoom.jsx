@@ -12,7 +12,7 @@ import Car, { CAR_POS } from '../myroom/Car.jsx'
 import { PianoSofa, OwnedFurniture, ComputerDesk } from '../myroom/Furniture.jsx'
 import ComputerScreen from '../components/ComputerScreen.jsx'
 import ShopModal from '../myroom/ShopModal.jsx'
-import CarCheckMission from '../missions/CarCheckMission.jsx'
+import { CarRepairField } from './Repair.jsx'
 import DialogBox from '../components/DialogBox.jsx'
 import RoomHud from '../components/RoomHud.jsx'
 import { useKeyboard } from '../myroom/useKeyboard.js'
@@ -34,20 +34,11 @@ const INTRO_LINES = [
   { who: '자일로', text: '도로랜드는 기술과 자연이 조화롭게 어우러지는 곳이에요. 자, 받으세요. 도로랜드 지도입니다.' },
   { who: '제로', text: '어? 지도에 처음 보는 문양이 하나 그려져 있어요.' },
   { who: '자일로', text: '이 넓은 곳을 걸어 다닐 순 없겠죠? 선물로 모바일 로봇 자동차를 준비했어요. 단, 조립과 점검은 100% 셀프!' },
-  { who: '리코', text: '완성!! 출발하기 전에 점검부터 하자. 자동차 앞에서 E를 눌러 봐.' },
-]
-const LOCKED_LINES = [
-  { text: '(문이 잠겨 있다.)' },
-  { who: '제로', text: '아직 첫 수업을 안 들었잖아! 대시보드에서 수업부터 듣고 오자.' },
-  { who: '리코', text: '수업을 들으면 도로랜드에서 초대장이 온대!' },
+  { who: '리코', text: '완성!! 그런데 오래 창고에 있던 차라 똑바로 안 간대. 자동차 앞에서 E를 눌러 같이 고쳐 보자!' },
+  { who: '자일로', text: '자동차를 고치면 운전면허증을 드릴게요. 면허증이 있어야 도로랜드를 달릴 수 있어요.' },
 ]
 const NEED_CHECK_LINES = [
-  { who: '리코', text: '잠깐! 출발 전에 자동차 점검부터 하자. 자동차 앞에서 E!' },
-]
-const CHECK_DONE_LINES = [
-  { who: '자일로', text: '점검까지 완벽하네요. 그거 좋은데요!' },
-  { who: '자일로', text: '마지막으로 하나 더! 자동차 옆 받침대에 모바일 로봇 운전면허증을 준비해 뒀어요. 면허증 없이 운전하면 안 되겠죠?' },
-  { who: '제로', text: '우리 이름이 적힌 면허증이래! 얼른 챙기자.' },
+  { who: '리코', text: '잠깐! 운전면허증이 있어야 나갈 수 있어. 자동차를 고치면 자일로가 면허증을 준대. 자동차 앞에서 E!' },
 ]
 const LICENSE_DONE_LINES = [
   { who: '자일로', text: '이제 정식 모바일 로봇 운전자예요. 면허증은 도로랜드에서 🪪 버튼으로 언제든 볼 수 있어요.' },
@@ -69,7 +60,7 @@ const PROMPTS = {
   license: '운전면허증 챙기기',
   portal: '상점 입장',
   door: '외출하기',
-  car: '모바일 로봇 출발 점검',
+  car: '자동차 고치기',
 }
 
 export default function MyRoom() {
@@ -102,16 +93,16 @@ export default function MyRoom() {
 
   const say = (lines, onDone) => setDialog({ lines, onDone })
 
-  // 챕터 1 시작: 수업을 듣고 처음 들어오면 지도와 자동차를 받는다.
+  // 챕터 1 시작: 마이룸에 처음 들어오면 바로 지도와 자동차를 받는다(수업과 연결하지 않음).
   useEffect(() => {
-    if (progress.classDone && !progress.introSeen && !dialog) {
+    if (!progress.introSeen && !dialog) {
       say(INTRO_LINES, () => {
         setProgress({ introSeen: true })
         setDialog(null)
       })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [progress.classDone, progress.introSeen])
+  }, [progress.introSeen])
 
   // 스토리 이후 A: 오래 비웠다 돌아오면 소파 피아노가 고장 나 있다
   useEffect(() => {
@@ -139,8 +130,7 @@ export default function MyRoom() {
     }
     if (id === 'sofa') setPanel(progress.sofaBroken ? 'fix-sofa' : 'piano')
     if (id === 'door') {
-      if (!progress.classDone) say(LOCKED_LINES, () => setDialog(null))
-      else if (!progress.carCheckDone) say(NEED_CHECK_LINES, () => setDialog(null))
+      if (!progress.carCheckDone) say(NEED_CHECK_LINES, () => setDialog(null))
       else if (needLicense) say(NEED_LICENSE_LINES, () => setDialog(null))
       else navigate('/world', { state: { from: 'myroom' } })
     }
@@ -150,7 +140,7 @@ export default function MyRoom() {
     }
     if (id === 'car') {
       if (!progress.carCheckDone) setPanel('mission')
-      else say([{ who: '리코', text: '점검 끝! 문으로 나가면 자동차를 타고 도로랜드를 달릴 수 있어.' }], () => setDialog(null))
+      else say([{ who: '리코', text: '자동차는 고쳤고 면허증도 받았어! 문으로 나가면 도로랜드를 달릴 수 있어.' }], () => setDialog(null))
     }
   }
 
@@ -158,7 +148,7 @@ export default function MyRoom() {
   // 카메라 연출은 다른 공간에 들어갈 때만 (상점, 도로랜드). 나머지는 바로 실행한다.
   const interact = (id) => {
     if (entry.active) return
-    const leaves = id === 'portal' || (id === 'door' && progress.classDone && progress.carCheckDone && !needLicense)
+    const leaves = id === 'portal' || (id === 'door' && progress.carCheckDone && !needLicense)
     if (!leaves) return executeInteraction(id)
     const pos = { portal: PORTAL_POS, door: DOOR_POS, car: CAR_POS, license: LICENSE_POS, sofa: SOFA_POS, desk: DESK_POS }[id] || posRef.current.toArray()
     const offset = id === 'desk' ? [4, 2.6, 2] : id === 'portal' ? [-4, 3, 4] : [3, 3, 5]
@@ -177,7 +167,18 @@ export default function MyRoom() {
 
   const start = posRef.current.clone().add(viewOffset(view.current))
   const promptText =
-    near === 'car' && progress.carCheckDone ? '자동차 살펴보기' : near === 'sofa' && progress.sofaBroken ? '소파 피아노 · 고장 수리' : PROMPTS[near]
+    near === 'car' && progress.carCheckDone ? '자동차 살펴보기' : near === 'car' ? '자동차 고치기' : near === 'sofa' && progress.sofaBroken ? '소파 피아노 · 고장 수리' : PROMPTS[near]
+
+  // 자동차 수리 미션(고장 수사대 방식). 다 고치면 운전면허증
+  if (panel === 'mission') return (
+    <CarRepairField
+      onClose={() => setPanel(null)}
+      onClear={() => {
+        setProgress({ carCheckDone: true, licenseGot: true, licenseDate: today() })
+        setPanel('license')
+      }}
+    />
+  )
 
   if (panel === 'computer') return (
     <ComputerScreen
@@ -204,7 +205,7 @@ export default function MyRoom() {
         />
         {!entry.active && <ViewControls view={view} />}
         <Room />
-        <Door locked={!progress.classDone} />
+        <Door locked={!progress.carCheckDone} />
         <PianoSofa position={SOFA_POS} rotation={[0, Math.PI / 4, 0]} />
         <ComputerDesk position={DESK_POS} />
         <OwnedFurniture owned={owned} />
@@ -255,16 +256,6 @@ export default function MyRoom() {
         />
       )}
       {panel === 'fix-sofa' && <FixMission id="sofa" onClose={() => setPanel(null)} onFixed={() => setPanel(null)} />}
-      {panel === 'mission' && (
-        <CarCheckMission
-          onClose={() => setPanel(null)}
-          onClear={() => {
-            setPanel(null)
-            setProgress({ carCheckDone: true })
-            say(CHECK_DONE_LINES, () => setDialog(null))
-          }}
-        />
-      )}
     </div>
   )
 }

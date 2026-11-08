@@ -6,10 +6,8 @@ const today = () => new Date().toISOString().slice(0, 10)
 
 // key: 진행 상태 값, done: 이 단계를 완료로 만드는 값, isDone: 완료 판단(없으면 p[key])
 export const STEPS = [
-  { key: 'classDone', label: '첫 수업 듣기' },
   { key: 'introSeen', label: '자일로에게 지도와 자동차 받기' },
-  { key: 'carCheckDone', label: '자동차 출발 점검' },
-  { key: 'licenseGot', label: '운전면허증 받기', done: () => ({ licenseGot: true, licenseDate: today() }) },
+  { key: 'carCheckDone', label: '자동차 수리하고 운전면허증 받기', done: () => ({ carCheckDone: true, licenseGot: true, licenseDate: today() }) },
   { key: 'diaryFound', label: '동굴에서 일기장 찾기', done: () => ({ caveIntroSeen: true, diaryFound: true }) },
   { key: 'caveCleared', label: '동굴 출구 찾기' },
   { key: 'plazaOpen', label: '자일로에게 광장 문 열어 달라고 하기' },
@@ -56,12 +54,12 @@ export function stateBefore(before) {
 // recap: 장면으로 넘어가기 전에 보여 주는 '지금까지의 이야기' 대사 (갑자기 미션부터 시작하지 않도록)
 export const SCENES = [
   {
-    id: 'license', label: '운전면허증 받기', before: 'licenseGot', to: '/myroom', tag: '시연 ①',
+    id: 'license', label: '자동차 수리하고 운전면허증 받기', before: 'carCheckDone', to: '/myroom', tag: '시연 ①',
     recap: [
-      { text: '(첫 수업을 마치자, 도로랜드에서 초대장이 날아왔다.)' },
+      { text: '(도로랜드에서 초대장이 날아왔다.)' },
       { who: '자일로', text: '어서 오세요, 도로랜드에! 이 넓은 곳을 걸어 다닐 순 없겠죠? 모바일 로봇 자동차를 준비했어요.' },
-      { who: '리코', text: '조립도 출발 점검도 끝냈어! 이제 출발만 하면 돼.' },
-      { who: '자일로', text: '잠깐! 면허증 없이 운전하면 안 되죠. 자동차 옆 받침대에 운전면허증을 놓아 뒀어요.' },
+      { who: '리코', text: '그런데 오래 창고에 있던 차라 똑바로 안 간대. 같이 고쳐 보자!' },
+      { who: '자일로', text: '자동차를 고치면 운전면허증을 드릴게요. 자동차 앞에서 E를 눌러 보세요.' },
     ],
   },
   {

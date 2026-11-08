@@ -31,7 +31,7 @@ export default function LicenseCard({ onClose, fresh = false }) {
               <dt>발급</dt><dd>도로랜드 총책임자 자일로</dd>
             </dl>
           </div>
-          <p className="lc-foot">출발 점검: 지도 확인 · 준비물 · 점검 순서 통과</p>
+          <p className="lc-foot">자동차 수리 통과: 바퀴 공기압 맞추기, 밸브 뚜껑 끼우기</p>
         </div>
         <button className="btn-primary" onClick={onClose}>{fresh ? '면허증 챙기기' : '닫기'}</button>
       </div>

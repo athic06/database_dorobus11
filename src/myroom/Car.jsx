@@ -11,7 +11,7 @@ export default function Car({ checked }) {
         <MobileCar headlightsOn={checked} />
       </group>
       <Html position={[0, 3.2, 0]} center zIndexRange={[1, 0]}>
-        <div className="portal-label">{checked ? '모바일 로봇 · 점검 완료' : '모바일 로봇'}</div>
+        <div className="portal-label">{checked ? '모바일 로봇, 수리 완료' : '모바일 로봇, 수리 필요'}</div>
       </Html>
     </group>
   )

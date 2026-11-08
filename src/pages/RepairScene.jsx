@@ -320,7 +320,44 @@ function Delivery({ settings, trial, field, known, progress }) {
   </>
 }
 
-const scenes = { food: Food, carousel: Carousel, safari: Safari, viking: Viking, coaster: Coaster, sign: Sign, parade: Parade, delivery: Delivery }
+// 첫 자동차: 오른쪽 뒷바퀴 바람이 빠지면 차가 기울고, 달리는 동안 차의 오른쪽으로 휜다
+function Car({ settings, trial, inspected, field, known, progress }) {
+  const low = settings.tire !== 2
+  const leaky = settings.cap !== 1
+  const reverse = trial?.kind === 'floor' // 반대 방향으로 달려 보기
+  const longRun = trial?.kind === 'test' && trial.index === 1
+  // 오래 달리기 시험에서 뚜껑이 없으면 중간부터 다시 바람이 빠진다
+  const leaking = longRun && !low && leaky ? Math.max(0, progress - .45) / .55 : 0
+  const drift = (low ? 1 : 0) * progress + leaking * .8
+  const x = reverse ? 360 - 300 * progress : 60 + 300 * progress
+  // 차의 오른쪽: 오른쪽으로 갈 때는 화면 아래, 왼쪽으로 갈 때는 화면 위
+  const y = 104 + (reverse ? -1 : 1) * drift * 26
+  const tilt = (low || leaking > .3) ? (reverse ? -4 : 4) : 0
+  const showPressure = !field || known.includes('pressure')
+  const rear = low ? settings.tire === 0 ? 12 : settings.tire === 1 ? 20 : 40 : leaking > .3 ? 18 : 30
+  return <>
+    {/* 차고 바닥의 주행 시험 선 */}
+    <rect x="20" y="86" width="380" height="44" rx="6" fill="#5f5a52" opacity=".55" />
+    <path d="M30 108h360" stroke="#f2e3b5" strokeWidth="2" strokeDasharray="10 8" />
+    <g transform={`translate(${x} ${y}) rotate(${tilt})`}>
+      <Emoji id="1F699" x={0} y={-6} size={58} flip={!reverse} />
+    </g>
+    {(field && known.includes('look')) && <Caption x={210} y={30} color={coral}>오른쪽 뒤가 살짝 낮아 보여요</Caption>}
+    {showPressure && <g>
+      <Caption x={330} y={30} color={ink}>바퀴 공기압</Caption>
+      {[['앞 왼', 30], ['앞 오', 30], ['뒤 왼', 30], ['뒤 오', rear]].map(([label, value], i) => (
+        <g key={label} transform={`translate(${282 + (i % 2) * 52} ${40 + Math.floor(i / 2) * 18})`}>
+          <rect width="48" height="15" rx="4" fill={value === 30 ? '#dbe8d6' : '#f6d2c8'} />
+          <text x="24" y="11" textAnchor="middle" fontSize="9" fontWeight="700" fill={value === 30 ? mint : coral}>{label} {value}</text>
+        </g>
+      ))}
+    </g>}
+    {(!field || known.includes('valve')) && <Caption x={92} y={30} color={leaky ? coral : mint}>{leaky ? '밸브 뚜껑 없음' : '새 밸브 뚜껑'}</Caption>}
+    {trial && <Caption x={210} y={150}>{reverse ? '반대 방향 주행' : longRun ? '오래 달리기' : '직진 주행'}</Caption>}
+  </>
+}
+
+const scenes = { food: Food, carousel: Carousel, safari: Safari, viking: Viking, coaster: Coaster, sign: Sign, parade: Parade, delivery: Delivery, car: Car }
 const locations = {
   food: '푸드코트 안쪽 조리대',
   carousel: '회전목마 승강장',
@@ -330,6 +367,7 @@ const locations = {
   sign: '광장 입구 전광판',
   parade: '퍼레이드 리허설 구간',
   delivery: '작업실 포장대',
+  car: '마이룸 차고',
 }
 
 export default function RepairScene({ item, settings, trial, inspected, field, known = [], finished = false, stage = false }) {

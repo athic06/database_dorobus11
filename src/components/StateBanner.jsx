@@ -7,7 +7,7 @@ import { chapterOf, continuePath, objectiveOf } from '../game/progress.js'
 const NEXT_UNLOCK = ['지도와 자동차', '동굴', '하모니아 광장', '신비한 큐브', '연구실과 보이드', '도로랜드의 일상 콘텐츠 전체']
 
 function headline(p, c) {
-  if (c === 1) return p.carCheckDone ? '운전면허증을 챙기면 출발이에요!' : p.introSeen ? '출발 전에 자동차를 점검해요!' : '자일로가 선물을 준비했어요!'
+  if (c === 1) return p.carCheckDone ? '운전면허증을 챙기면 출발이에요!' : '자동차를 고치면 운전면허증을 받아요!'
   if (c === 2) return p.diaryFound ? '동굴의 출구를 찾아야 해요!' : '지도의 문양이 동굴을 가리켜요!'
   if (c === 3) {
     if (!p.plazaOpen) return '하모니아가 멈춰 버렸어요!'
@@ -30,7 +30,7 @@ export default function StateBanner() {
     c === 0
       ? {
           tag: '처음 로그인', tone: 'first', title: '도로랜드에 오신 걸 환영해요!', sub: '리코와 제로를 만나 첫 번째 모험을 시작해 보세요.',
-          next: '첫 수업을 들으면 지도와 자동차를 받을 수 있어요', action: '메인 스토리 시작하기', go: () => scrollTo('.card.lesson'),
+          next: '마이룸에 들어가면 자일로가 지도와 자동차를 줘요', action: '메인 스토리 시작하기', go: () => navigate('/myroom'),
         }
       : c === 6
         ? {
